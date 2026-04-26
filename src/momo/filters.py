@@ -1,0 +1,116 @@
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Union
+
+import numpy as np
+import pywt
+from scipy.signal import medfilt
+
+
+@dataclass(frozen=True)
+class IdentityFilter:
+    def apply(self, y: np.ndarray) -> np.ndarray:
+        return np.asarray(y, dtype=float).copy()
+
+
+@dataclass(frozen=True)
+class MovingAverageFilter:
+    window: int = 20
+
+    def apply(self, y: np.ndarray) -> np.ndarray:
+        y = np.asarray(y, dtype=float)
+        w = int(self.window)
+        if w <= 1:
+            return y.copy()
+        n = y.size
+        pad = w - 1
+        padded = np.pad(y, (pad, 0), mode="reflect")
+        kernel = np.ones(w, dtype=float) / w
+        out = np.convolve(padded, kernel, mode="valid")
+        return out[:n]
+
+
+@dataclass(frozen=True)
+class KalmanLocalLevelFilter:
+    process_var: float = 1e-4
+    obs_var: float = 1.0
+
+    def apply(self, y: np.ndarray) -> np.ndarray:
+        y = np.asarray(y, dtype=float)
+        n = y.size
+        if n == 0:
+            return y.copy()
+        Q = float(self.process_var)
+        R = float(self.obs_var)
+        out = np.empty(n, dtype=float)
+        x = float(y[0])
+        P = R
+        out[0] = x
+        for t in range(1, n):
+            P_pred = P + Q
+            K = P_pred / (P_pred + R)
+            x = x + K * (y[t] - x)
+            P = (1.0 - K) * P_pred
+            out[t] = x
+        return out
+
+
+@dataclass(frozen=True)
+class WaveletThresholdFilter:
+    wavelet: str = "db4"
+    level: Union[int, None] = None
+    mode: str = "soft"
+    threshold: Union[str, float] = "universal"
+
+    def apply(self, y: np.ndarray) -> np.ndarray:
+        y = np.asarray(y, dtype=float)
+        n = y.size
+        if n < 2:
+            return y.copy()
+        wavelet = pywt.Wavelet(self.wavelet)
+        max_level = pywt.dwt_max_level(n, wavelet.dec_len)
+        level = max_level if self.level is None else min(int(self.level), max_level)
+        if level < 1:
+            return y.copy()
+        coeffs = pywt.wavedec(y, wavelet, level=level, mode="symmetric")
+        detail_finest = coeffs[-1]
+        if isinstance(self.threshold, (int, float)):
+            lam = float(self.threshold)
+        else:
+            sigma_hat = float(np.median(np.abs(detail_finest - np.median(detail_finest))) / 0.6745)
+            lam = sigma_hat * float(np.sqrt(2.0 * np.log(max(n, 2))))
+        new_coeffs = [coeffs[0]]
+        for d in coeffs[1:]:
+            new_coeffs.append(pywt.threshold(d, lam, mode=self.mode))
+        rec = pywt.waverec(new_coeffs, wavelet, mode="symmetric")
+        return np.asarray(rec[:n], dtype=float)
+
+
+@dataclass(frozen=True)
+class MedianFilter:
+    window: int = 21
+
+    def apply(self, y: np.ndarray) -> np.ndarray:
+        y = np.asarray(y, dtype=float)
+        w = int(self.window)
+        if w < 1:
+            w = 1
+        if w % 2 == 0:
+            w += 1
+        if w == 1:
+            return y.copy()
+        n = y.size
+        pad = w // 2
+        padded = np.pad(y, (pad, pad), mode="reflect")
+        out = medfilt(padded, kernel_size=w)
+        return out[pad:pad + n]
+
+
+FILTER_REGISTRY = {
+    "F0": IdentityFilter,
+    "F1": MovingAverageFilter,
+    "F2": KalmanLocalLevelFilter,
+    "F3": WaveletThresholdFilter,
+    "F4": MedianFilter,
+}

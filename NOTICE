@@ -1,0 +1,10 @@
+This project uses third-party Python libraries under their respective licenses:
+- numpy, scipy, pandas, matplotlib, seaborn (BSD)
+- pytorch (BSD)
+- pywavelets (MIT)
+- filterpy (MIT)
+- statsmodels (BSD)
+- yfinance (Apache 2.0)
+- hurst (MIT)
+
+Methodology references are listed in refs.bib.

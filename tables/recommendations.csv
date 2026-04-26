@@ -1,0 +1,9 @@
+task,noise,best_filter,best_optimizer,best_t_eps,best_filter_by_snr
+quadratic,N1,F0,adam,2000,F2
+quadratic,N2,F0,adam,2000,F3
+quadratic,N3,F0,adam,2000,F4
+quadratic,N4,F0,adam,2000,F4
+logistic,N1,F4,sgd,559,F2
+logistic,N2,F0,sgd,585,F3
+logistic,N3,F0,adam,2000,F4
+logistic,N4,F0,adam,2000,F4

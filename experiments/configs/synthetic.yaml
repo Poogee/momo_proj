@@ -1,0 +1,28 @@
+filters:
+  F0: {kind: identity}
+  F1: {kind: ma, window: 8}
+  F2: {kind: kalman, process_var: 1.0e-4, obs_var: 1.0}
+  F3: {kind: wavelet, wavelet: db4, mode: soft, threshold: universal}
+  F4: {kind: median, window: 9}
+
+noises:
+  N1: {kind: gaussian, sigma: 0.5}
+  N2: {kind: pink, d: 0.3, sigma: 0.5}
+  N3: {kind: stable, alpha: 1.7, sigma: 0.5}
+  N4: {kind: mixed, d: 0.25, alpha: 1.7, sigma: 0.5}
+
+optimizers:
+  sgd: {lr: 1.0e-2, weight_decay: 0.0}
+  adam: {lr: 1.0e-2, weight_decay: 0.0}
+  adamw: {lr: 1.0e-2, weight_decay: 1.0e-4}
+
+tasks:
+  quadratic: {dim: 50, condition_number: 10.0}
+  logistic: {n: 4000, dim: 20, n_test: 1000, noise_scale: 0.5, lr: 5.0e-2}
+
+run:
+  steps: 2000
+  buffer_size: 32
+  batch_size: 32
+  n_seeds: 5
+  epsilon: 1.0e-2

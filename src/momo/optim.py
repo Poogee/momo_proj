@@ -18,15 +18,29 @@ class OptimResult:
 
 
 def _stochastic_grad(task: Any, x: np.ndarray, rng: np.random.Generator,
-                     noise: Any, noise_scale: float, batch_size: int) -> np.ndarray:
+                     noise: Any, noise_scale: float, batch_size: int,
+                     xi_override: np.ndarray | None = None) -> np.ndarray:
     dim = x.size
-    xi = noise.sample(dim, rng) * noise_scale
+    xi = xi_override if xi_override is not None else noise.sample(dim, rng) * noise_scale
     if isinstance(task, QuadraticTask):
         return task.A @ x - task.b + xi
     if isinstance(task, LogisticTask):
         Z_b, y_b = task.sample_batch(rng, batch_size)
         return task.grad(x, Z_b, y_b) + xi
     return task.grad(x) + xi
+
+
+def _build_noise_trajectory(noise: Any, steps: int, dim: int, rng: np.random.Generator,
+                            noise_scale: float) -> np.ndarray:
+    cols = [noise.sample(steps, rng) for _ in range(dim)]
+    return np.column_stack(cols) * noise_scale
+
+
+def _prefilter_columns(traj: np.ndarray, filt: Any) -> np.ndarray:
+    out = np.empty_like(traj)
+    for j in range(traj.shape[1]):
+        out[:, j] = filt.apply(traj[:, j])
+    return out
 
 
 def _filter_buffer(buffer: np.ndarray, count: int, filt: Any) -> np.ndarray:
@@ -94,12 +108,11 @@ def run_optimization(
     weight_decay: float = 1e-4,
     log_every: int = 1,
     noise_scale: float = 1.0,
+    preprocess_mode: str = "buffer",
 ) -> OptimResult:
     rng = np.random.default_rng(seed)
     dim = task.dim
     x = rng.normal(scale=0.01, size=dim)
-    buffer = np.zeros((buffer_size, dim), dtype=float)
-    count = 0
     state = _make_state(optimizer, dim)
     step_fn = _OPTIMIZERS[optimizer]
 
@@ -108,17 +121,33 @@ def run_optimization(
     loss_history = np.empty(steps, dtype=float)
     x_history[0] = x
 
-    for k in range(steps):
-        g_raw = _stochastic_grad(task, x, rng, noise, noise_scale, batch_size)
-        slot = count % buffer_size
-        buffer[slot] = g_raw
-        count += 1
-        g_filtered = _filter_buffer(buffer, count, filt)
-        x = step_fn(x, g_filtered, state, lr, weight_decay)
-        x_history[k + 1] = x
-        true_grad = task.grad(x)
-        grad_norm_sq_history[k] = float(true_grad @ true_grad)
-        loss_history[k] = float(task.loss(x))
+    if preprocess_mode == "data":
+        traj = _build_noise_trajectory(noise, steps, dim, rng, noise_scale)
+        filt_traj = _prefilter_columns(traj, filt)
+        for k in range(steps):
+            g = _stochastic_grad(task, x, rng, noise, noise_scale, batch_size,
+                                 xi_override=filt_traj[k])
+            x = step_fn(x, g, state, lr, weight_decay)
+            x_history[k + 1] = x
+            true_grad = task.grad(x)
+            grad_norm_sq_history[k] = float(true_grad @ true_grad)
+            loss_history[k] = float(task.loss(x))
+    elif preprocess_mode == "buffer":
+        buffer = np.zeros((buffer_size, dim), dtype=float)
+        count = 0
+        for k in range(steps):
+            g_raw = _stochastic_grad(task, x, rng, noise, noise_scale, batch_size)
+            slot = count % buffer_size
+            buffer[slot] = g_raw
+            count += 1
+            g_filtered = _filter_buffer(buffer, count, filt)
+            x = step_fn(x, g_filtered, state, lr, weight_decay)
+            x_history[k + 1] = x
+            true_grad = task.grad(x)
+            grad_norm_sq_history[k] = float(true_grad @ true_grad)
+            loss_history[k] = float(task.loss(x))
+    else:
+        raise ValueError(f"unknown preprocess_mode: {preprocess_mode}")
 
     config = {
         "optimizer": optimizer,
@@ -131,6 +160,7 @@ def run_optimization(
         "noise_scale": noise_scale,
         "log_every": log_every,
         "dim": dim,
+        "preprocess_mode": preprocess_mode,
     }
     return OptimResult(
         x_history=x_history,

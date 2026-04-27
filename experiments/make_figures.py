@@ -29,10 +29,12 @@ FILTER_LABELS = {
     "F2": "F2 Калман",
     "F3": "F3 Вейвлет",
     "F4": "F4 Медиана",
+    "F5": "F5 CNN",
 }
 OPT_LABELS = {"sgd": "SGD", "adam": "Adam", "adamw": "AdamW"}
 
-FILTER_ORDER = ["F0", "F1", "F2", "F3", "F4"]
+FILTER_ORDER_BASE = ["F0", "F1", "F2", "F3", "F4"]
+FILTER_ORDER = ["F0", "F1", "F2", "F3", "F4", "F5"]
 NOISE_ORDER = ["N1", "N2", "N3", "N4"]
 OPT_ORDER = ["sgd", "adam", "adamw"]
 

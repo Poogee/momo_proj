@@ -146,7 +146,7 @@ def test_all_filters_run_on_various_sizes():
 
 
 def test_registry_keys_present():
-    assert set(FILTER_REGISTRY.keys()) == {"F0", "F1", "F2", "F3", "F4"}
+    assert {"F0", "F1", "F2", "F3", "F4"}.issubset(set(FILTER_REGISTRY.keys()))
     assert FILTER_REGISTRY["F0"] is IdentityFilter
     assert FILTER_REGISTRY["F1"] is MovingAverageFilter
     assert FILTER_REGISTRY["F2"] is KalmanLocalLevelFilter

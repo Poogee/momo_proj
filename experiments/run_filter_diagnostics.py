@@ -57,14 +57,21 @@ def build_noise(name: str, sigma: float = 1.0):
     raise ValueError(name)
 
 
-def build_filters() -> dict:
-    return {
+def build_filters(include_learnable: bool = True) -> dict:
+    base = {
         "F0": IdentityFilter(),
         "F1": MovingAverageFilter(window=21),
         "F2": KalmanLocalLevelFilter(process_var=1e-3, obs_var=1.0),
         "F3": WaveletThresholdFilter(wavelet="db4", mode="soft", threshold="universal"),
         "F4": MedianFilter(window=21),
     }
+    if include_learnable:
+        try:
+            from momo.learnable import LearnableCNNFilter
+            base["F5"] = LearnableCNNFilter()
+        except Exception:
+            pass
+    return base
 
 
 def main():

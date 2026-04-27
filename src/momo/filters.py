@@ -114,3 +114,7 @@ FILTER_REGISTRY = {
     "F3": WaveletThresholdFilter,
     "F4": MedianFilter,
 }
+
+from momo.learnable import LearnableCNNFilter  # noqa: E402
+
+FILTER_REGISTRY["F5"] = LearnableCNNFilter

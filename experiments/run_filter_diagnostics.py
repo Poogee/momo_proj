@@ -58,12 +58,15 @@ def build_noise(name: str, sigma: float = 1.0):
 
 
 def build_filters(include_learnable: bool = True) -> dict:
+    from momo.filters import AdaptiveWaveletFilter, HybridMedianWaveletFilter
     base = {
         "F0": IdentityFilter(),
         "F1": MovingAverageFilter(window=21),
         "F2": KalmanLocalLevelFilter(process_var=1e-3, obs_var=1.0),
         "F3": WaveletThresholdFilter(wavelet="db4", mode="soft", threshold="universal"),
         "F4": MedianFilter(window=21),
+        "F6": AdaptiveWaveletFilter(),
+        "F7": HybridMedianWaveletFilter(),
     }
     if include_learnable:
         try:

@@ -84,6 +84,8 @@ class LearnableCNNFilter:
         n = y_arr.size
         if n == 0:
             return y_arr.astype(float)
+        if n < 64:
+            return y_arr.astype(float)
         self._ensure_loaded()
         w = int(self.window)
         if n <= w:

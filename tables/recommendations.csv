@@ -3,7 +3,7 @@ quadratic,N1,F0,adam,2000,F2
 quadratic,N2,F0,adam,2000,F6
 quadratic,N3,F0,adam,2000,F7
 quadratic,N4,F0,adam,2000,F4
-logistic,N1,F4,sgd,559,F2
+logistic,N1,F7,sgd,554,F2
 logistic,N2,F0,sgd,585,F6
 logistic,N3,F0,adam,2000,F7
 logistic,N4,F0,adam,2000,F4

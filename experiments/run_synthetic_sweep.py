@@ -44,6 +44,15 @@ def build_filter(spec: dict):
         return WaveletThresholdFilter(wavelet=spec["wavelet"], mode=spec["mode"], threshold=spec["threshold"])
     if kind == "median":
         return MedianFilter(window=spec["window"])
+    if kind == "adaptive_wavelet":
+        from momo.filters import AdaptiveWaveletFilter
+        return AdaptiveWaveletFilter()
+    if kind == "hybrid_median_wavelet":
+        from momo.filters import HybridMedianWaveletFilter
+        return HybridMedianWaveletFilter(median_window=spec.get("median_window", 5))
+    if kind == "learned":
+        from momo.learnable import LearnableCNNFilter
+        return LearnableCNNFilter()
     raise ValueError(kind)
 
 

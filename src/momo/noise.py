@@ -114,6 +114,26 @@ class JumpDiffusionNoise:
         return diff + jumps
 
 
+@dataclass(frozen=True)
+class HawkesClusteredJumpNoise:
+    sigma: float = 1.0
+    base_intensity: float = 0.005
+    self_excitation: float = 0.5
+    decay: float = 0.05
+    jump_scale: float = 4.0
+
+    def sample(self, T: int, rng: np.random.Generator) -> np.ndarray:
+        diff = rng.normal(0.0, self.sigma, size=T)
+        intensity = float(self.base_intensity)
+        jumps = np.zeros(T, dtype=float)
+        for t in range(T):
+            if rng.uniform() < intensity:
+                jumps[t] = float(rng.normal(0.0, self.jump_scale))
+                intensity = min(0.95, intensity + self.self_excitation)
+            intensity = self.base_intensity + (intensity - self.base_intensity) * (1.0 - self.decay)
+        return diff + jumps
+
+
 NOISE_REGISTRY = {
     "N1": GaussianNoise,
     "N2": PinkFARIMANoise,
@@ -121,4 +141,5 @@ NOISE_REGISTRY = {
     "N4": MixedFARIMAStableNoise,
     "N5": RegimeSwitchNoise,
     "N6": JumpDiffusionNoise,
+    "N7": HawkesClusteredJumpNoise,
 }

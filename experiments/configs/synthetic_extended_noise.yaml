@@ -1,0 +1,25 @@
+filters:
+  F0: {kind: identity}
+  F2: {kind: kalman, process_var: 1.0e-4, obs_var: 1.0}
+  F4: {kind: median, window: 9}
+  F7: {kind: hybrid_median_wavelet, median_window: 5}
+  F8: {kind: meta}
+
+noises:
+  N5: {kind: regime, sigma: 0.5, alpha: 1.6, block_length: 256}
+  N6: {kind: jump, sigma: 0.3, jump_intensity: 0.02, jump_scale: 3.0}
+
+optimizers:
+  sgd: {lr: 1.0e-2, weight_decay: 0.0}
+  adam: {lr: 1.0e-2, weight_decay: 0.0}
+  adamw: {lr: 1.0e-2, weight_decay: 1.0e-4}
+
+tasks:
+  logistic: {n: 4000, dim: 20, n_test: 1000, noise_scale: 0.5, lr: 5.0e-2}
+
+run:
+  steps: 2000
+  buffer_size: 32
+  batch_size: 32
+  n_seeds: 5
+  epsilon: 1.0e-2

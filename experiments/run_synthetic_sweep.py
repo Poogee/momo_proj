@@ -53,6 +53,9 @@ def build_filter(spec: dict):
     if kind == "learned":
         from momo.learnable import LearnableCNNFilter
         return LearnableCNNFilter()
+    if kind == "meta":
+        from momo.filters import AdaptiveMetaFilter
+        return AdaptiveMetaFilter()
     raise ValueError(kind)
 
 
@@ -66,6 +69,12 @@ def build_noise(spec: dict):
         return StableNoise(alpha=spec["alpha"], sigma=spec["sigma"])
     if kind == "mixed":
         return MixedFARIMAStableNoise(d=spec["d"], alpha=spec["alpha"], sigma=spec["sigma"])
+    if kind == "regime":
+        from momo.noise import RegimeSwitchNoise
+        return RegimeSwitchNoise(sigma=spec["sigma"], alpha=spec["alpha"], block_length=spec.get("block_length", 256))
+    if kind == "jump":
+        from momo.noise import JumpDiffusionNoise
+        return JumpDiffusionNoise(sigma=spec["sigma"], jump_intensity=spec["jump_intensity"], jump_scale=spec["jump_scale"])
     raise ValueError(kind)
 
 

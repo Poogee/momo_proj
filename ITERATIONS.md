@@ -24,6 +24,8 @@ real-data sweep on 9 tickers, Russian Typst report, 57 tests).
 | 16 | Convergence-rate verification | `figures/convergence_rate_alpha.pdf`, `tables/convergence_rates.csv` | SGD F0 DIVERGES at α=1.2 (slope +0.25). Norm-SGD/Clipped-SGD/F4 all stabilize. |
 | 17 | Batch-size ablation | `figures/batch_size_ablation.pdf` | F7/F8 advantage stable +2-3pp across batch ∈ {4..256}. |
 | 18 | Real-data 5-optimizer × 7-filter sweep | `tables/real_ho_full.csv`, `experiments/run_real_full_ho.py` | SGD/Clipped-SGD insensitive to filter choice; adaptive methods harmed by filtering on real returns. |
+| 19 | ITERATIONS.md innovation log | `ITERATIONS.md` | One-line summary of each innovation with artifact path and headline. |
+| 20 | F9 = 4× larger CNN denoiser | `models/learnable_filter_v2.pt`, `LearnableCNNFilterV2`, `tables/learnable_v1_vs_v2.csv` | F9 wins 5 of 6 noises; +5.4 dB on N4, +4.8 dB on N3, +2.8 dB on N1 over best hand-crafted. New universal recommendation when GPU is available. |
 
 After iteration 18:
 - 9 filters (F0–F8 with F5 learnable, F6 adaptive wavelet, F7 hybrid, F8 meta)

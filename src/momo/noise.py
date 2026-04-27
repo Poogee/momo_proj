@@ -76,9 +76,49 @@ class MixedFARIMAStableNoise:
         return filtered[self.truncation : self.truncation + T]
 
 
+@dataclass(frozen=True)
+class RegimeSwitchNoise:
+    sigma: float = 1.0
+    alpha: float = 1.6
+    block_length: int = 256
+
+    def sample(self, T: int, rng: np.random.Generator) -> np.ndarray:
+        out = np.empty(T, dtype=float)
+        i = 0
+        regime = 0
+        while i < T:
+            n = min(self.block_length, T - i)
+            if regime == 0:
+                out[i:i + n] = rng.normal(0.0, self.sigma, size=n)
+            else:
+                seed = _stable_random_state(rng)
+                out[i:i + n] = levy_stable.rvs(
+                    alpha=self.alpha, beta=0.0, scale=self.sigma,
+                    size=n, random_state=seed,
+                )
+            regime = 1 - regime
+            i += n
+        return out
+
+
+@dataclass(frozen=True)
+class JumpDiffusionNoise:
+    sigma: float = 1.0
+    jump_intensity: float = 0.02
+    jump_scale: float = 5.0
+
+    def sample(self, T: int, rng: np.random.Generator) -> np.ndarray:
+        diff = rng.normal(0.0, self.sigma, size=T)
+        n_jumps = rng.binomial(1, self.jump_intensity, size=T)
+        jumps = n_jumps * rng.normal(0.0, self.jump_scale, size=T)
+        return diff + jumps
+
+
 NOISE_REGISTRY = {
     "N1": GaussianNoise,
     "N2": PinkFARIMANoise,
     "N3": StableNoise,
     "N4": MixedFARIMAStableNoise,
+    "N5": RegimeSwitchNoise,
+    "N6": JumpDiffusionNoise,
 }

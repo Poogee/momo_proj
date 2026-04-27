@@ -26,6 +26,15 @@ real-data sweep on 9 tickers, Russian Typst report, 57 tests).
 | 18 | Real-data 5-optimizer × 7-filter sweep | `tables/real_ho_full.csv`, `experiments/run_real_full_ho.py` | SGD/Clipped-SGD insensitive to filter choice; adaptive methods harmed by filtering on real returns. |
 | 19 | ITERATIONS.md innovation log | `ITERATIONS.md` | One-line summary of each innovation with artifact path and headline. |
 | 20 | F9 = 4× larger CNN denoiser | `models/learnable_filter_v2.pt`, `LearnableCNNFilterV2`, `tables/learnable_v1_vs_v2.csv` | F9 wins 5 of 6 noises; +5.4 dB on N4, +4.8 dB on N3, +2.8 dB on N1 over best hand-crafted. New universal recommendation when GPU is available. |
+| 21 | Housekeeping: conclusion table + ITERATIONS.md updated for F9 | `report.typ`, `ITERATIONS.md` | F9 added as new top recommendation when GPU available. |
+| 22 | F9 on real data — synthetic gains don't transfer | `tables/real_walkforward_with_learnable.csv` | F9 → MSE 6.71 (worse than F0 = 3.63). High synthetic SNR ≠ better real-data forecast. |
+| 23 | Volatility forecast (smoother target) | `experiments/run_volatility_forecast.py`, `tables/real_vol_forecast.csv` | F4 within 1% of F0; CNN F5/F9 break (out-of-distribution positive series). |
+| 24 | Master SNR heatmap + global ranking | `figures/master_snr_heatmap.pdf`, `tables/master_snr_table.csv` | F9: 17.28 dB > F2 Kalman: 13.92 dB > F8 Meta: 13.48 dB > F4 Median: 13.15 dB. |
+| 25 | README rewrite reflecting all innovations | `README.md` | Master ranking, layout, headline findings table. |
+| 26 | Window-size sensitivity (F1, F4, F7) | `tables/window_sensitivity.csv`, `figures/window_sensitivity.pdf` | F7 most robust to window choice (18-22 dB on N3 across all windows). |
+| 27 | F8 added to walk-forward | `tables/real_walkforward_full.csv` | F8 routes to F7 on real returns (α̂ ≈ 1.18); same MSE — adaptive routing right per SNR but wrong objective for forecast. |
+| 28 | Sign prediction on real data | `experiments/run_real_sign_prediction.py`, `tables/real_sign_pred.csv` | **F4 Median +7.1 pp accuracy vs majority baseline** — first positive real-data result! Task choice (sign vs magnitude) is decisive. |
+| 29 | Conclusion + recommendation table updated for F4 sign-pred win | `report.typ` | F4 + Adam now recommended for sign prediction on real data. |
 
 After iteration 18:
 - 9 filters (F0–F8 with F5 learnable, F6 adaptive wavelet, F7 hybrid, F8 meta)

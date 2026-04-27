@@ -64,6 +64,21 @@ def _sgd_step(x, g, state, lr, weight_decay):
     return x - lr * g
 
 
+def _clipped_sgd_step(x, g, state, lr, weight_decay):
+    threshold = state.get("threshold", 1.0)
+    norm = float(np.linalg.norm(g))
+    if norm > threshold:
+        g = g * (threshold / norm)
+    return x - lr * g
+
+
+def _normalized_sgd_step(x, g, state, lr, weight_decay):
+    norm = float(np.linalg.norm(g))
+    if norm < 1e-12:
+        return x
+    return x - lr * g / norm
+
+
 def _adam_step(x, g, state, lr, weight_decay):
     state["t"] += 1
     t = state["t"]
@@ -86,11 +101,21 @@ def _adamw_step(x, g, state, lr, weight_decay):
     return x - lr * (m_hat / (np.sqrt(v_hat) + eps) + weight_decay * x)
 
 
-_OPTIMIZERS = {"sgd": _sgd_step, "adam": _adam_step, "adamw": _adamw_step}
+_OPTIMIZERS = {
+    "sgd": _sgd_step,
+    "adam": _adam_step,
+    "adamw": _adamw_step,
+    "clipped_sgd": _clipped_sgd_step,
+    "normalized_sgd": _normalized_sgd_step,
+}
 
 
-def _make_state(name: str, dim: int) -> dict:
+def _make_state(name: str, dim: int, **extras) -> dict:
     if name == "sgd":
+        return {}
+    if name == "clipped_sgd":
+        return {"threshold": extras.get("clip_threshold", 1.0)}
+    if name == "normalized_sgd":
         return {}
     return {"m": np.zeros(dim), "v": np.zeros(dim), "t": 0}
 
@@ -114,7 +139,10 @@ def run_optimization(
     rng = np.random.default_rng(seed)
     dim = task.dim
     x = rng.normal(scale=0.01, size=dim)
-    state = _make_state(optimizer, dim)
+    extras = {}
+    if optimizer == "clipped_sgd":
+        extras["clip_threshold"] = (5.0 / np.sqrt(dim)) if noise_scale <= 0 else 5.0 * noise_scale
+    state = _make_state(optimizer, dim, **extras)
     step_fn = _OPTIMIZERS[optimizer]
 
     x_history = np.empty((steps + 1, dim), dtype=float)

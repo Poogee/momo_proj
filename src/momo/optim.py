@@ -109,6 +109,7 @@ def run_optimization(
     log_every: int = 1,
     noise_scale: float = 1.0,
     preprocess_mode: str = "buffer",
+    clipper: Any = None,
 ) -> OptimResult:
     rng = np.random.default_rng(seed)
     dim = task.dim
@@ -127,6 +128,8 @@ def run_optimization(
         for k in range(steps):
             g = _stochastic_grad(task, x, rng, noise, noise_scale, batch_size,
                                  xi_override=filt_traj[k])
+            if clipper is not None:
+                g = clipper.update(g)
             x = step_fn(x, g, state, lr, weight_decay)
             x_history[k + 1] = x
             true_grad = task.grad(x)
@@ -141,6 +144,8 @@ def run_optimization(
             buffer[slot] = g_raw
             count += 1
             g_filtered = _filter_buffer(buffer, count, filt)
+            if clipper is not None:
+                g_filtered = clipper.update(g_filtered)
             x = step_fn(x, g_filtered, state, lr, weight_decay)
             x_history[k + 1] = x
             true_grad = task.grad(x)

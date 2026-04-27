@@ -39,9 +39,15 @@ def make_quadratic(dim: int = 50, condition_number: float = 10.0,
 
 
 def _sigmoid(z: np.ndarray) -> np.ndarray:
-    return np.where(z >= 0,
-                    1.0 / (1.0 + np.exp(-z)),
-                    np.exp(z) / (1.0 + np.exp(z)))
+    z = np.asarray(z, dtype=float)
+    out = np.empty_like(z)
+    pos = z >= 0
+    neg = ~pos
+    with np.errstate(over="ignore"):
+        out[pos] = 1.0 / (1.0 + np.exp(-z[pos]))
+        ez = np.exp(z[neg])
+        out[neg] = ez / (1.0 + ez)
+    return out
 
 
 def _logistic_loss(x: np.ndarray, Z: np.ndarray, y: np.ndarray) -> float:

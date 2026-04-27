@@ -86,7 +86,7 @@ def _to_returns(prices: pd.DataFrame, log_returns: bool) -> pd.DataFrame:
         rets = np.log(prices / prices.shift(1))
     else:
         rets = prices.pct_change()
-    rets = rets.replace([np.inf, -np.inf], np.nan).dropna(how="any")
+    rets = rets.replace([np.inf, -np.inf], np.nan).dropna(how="all")
     return rets
 
 

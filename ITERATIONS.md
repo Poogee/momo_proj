@@ -35,6 +35,19 @@ real-data sweep on 9 tickers, Russian Typst report, 57 tests).
 | 27 | F8 added to walk-forward | `tables/real_walkforward_full.csv` | F8 routes to F7 on real returns (α̂ ≈ 1.18); same MSE — adaptive routing right per SNR but wrong objective for forecast. |
 | 28 | Sign prediction on real data | `experiments/run_real_sign_prediction.py`, `tables/real_sign_pred.csv` | **F4 Median +7.1 pp accuracy vs majority baseline** — first positive real-data result! Task choice (sign vs magnitude) is decisive. |
 | 29 | Conclusion + recommendation table updated for F4 sign-pred win | `report.typ` | F4 + Adam now recommended for sign prediction on real data. |
+| 30 | ITERATIONS.md catch-up | `ITERATIONS.md` | Coverage of 21-29. |
+| 31 | Cross-asset transfer (F4 sign-pred train→test) | `experiments/run_cross_asset_transfer.py`, `tables/cross_asset_transfer.csv` | F4 win is asset-specific; cross-asset transfer fails for ALL filters. |
+| 32 | Theoretical sketch (Robbins-Monro / Cutkosky / Defossez) | `report.typ` §32 | Filter rescues SGD via variance reduction or order statistics; matches empirical slopes. |
+| 33 | N7 Hawkes-clustered jump noise | `noise.py:HawkesClusteredJumpNoise` | F2 Kalman wins +22.3 dB on this regime; tests added. |
+| 34 | Test suite expansion for F6/F7/F8 + Hawkes | `tests/test_extended_filters.py` | +9 tests, 82 total. |
+| 35 | Stress test α ∈ [1.1, 1.9] | `experiments/run_stress_test.py`, `figures/stress_test.pdf` | F4+Norm-SGD universal robust pair; SGD F0 catastrophic at α=1.1. |
+| 36 | Multi-step horizon scan (h ∈ {1,5,10,20}) | `figures/multistep_horizon.pdf` | F4 catches F0 at h≥10, slightly beats it. |
+| 37 | F4 window sensitivity for sign prediction | `figures/signpred_window.pdf` | w=3 best (+6 pp); robust across w∈[3,51]. |
+| 38 | Ensemble FE = (F2+F4+F7)/3 | `EnsembleAverageFilter` | 13.22 dB avg, between F2 and F4; no win over best single. |
+| 39 | F8 α-threshold sensitivity | `figures/meta_routing_sensitivity.pdf` | Robust 12.97-13.87 dB across [1.5, 1.95]; default near optimum. |
+| 40 | **CORRECTION** F4 sign-pred +7pp was lookahead artifact | `CausalMedianFilter`, `figures/signpred_causal.pdf` | Causal median (no future) is *worse* than F0 (0.59 vs 0.60). Sign-pred conclusion reversed. |
+| 41 | Magnitude forecast with fully-causal filters | `experiments/run_real_walkforward_causal.py` | F0 still wins; magnitude conclusion robust (F1, F2 were already causal). |
+| 42 | Bug fix: `_to_returns` partial-failure handling | `src/momo/data.py` | dropna(how="any") → dropna(how="all"); single-ticker yfinance failures no longer wipe entire DataFrame. |
 
 After iteration 18:
 - 9 filters (F0–F8 with F5 learnable, F6 adaptive wavelet, F7 hybrid, F8 meta)

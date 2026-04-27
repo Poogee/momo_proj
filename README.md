@@ -1,19 +1,22 @@
-# momo — denoising as preprocessing for stochastic optimization
+# momo — denoising as preprocessing for stochastic optimization on financial time series
 
-Empirical study of denoising-as-preprocessing for stochastic optimization on
-financial time series. The original brief implements
+НИУ ВШЭ project · Russian Typst report (`report.pdf`, 41 pages) · Reproducible code · GitHub: [Poogee/momo_proj](https://github.com/Poogee/momo_proj)
+
+The original brief was the factorial
 
   (filter F0..F4) × (noise N1..N4) × (optimizer ∈ {SGD, Adam, AdamW})
 
 on synthetic tasks (quadratic + logistic) and a basket of real financial
-series. Through 24 innovation iterations the project was extended to:
+series. Through 44 innovation iterations the project was extended to:
 
-  10 filters (F0..F9, including learned CNN denoisers and an adaptive meta-filter)
-  × 6 noise classes (N1..N6, adding regime-switch and jump-diffusion)
+  10 filters (F0..F9 + ensemble FE, including learned CNN denoisers and an adaptive meta-filter)
+  × 7 noise classes (N1..N7, adding regime-switch, jump-diffusion, Hawkes-clustered)
   × 5 optimizers (SGD, Clipped-SGD, Normalized-SGD, Adam, AdamW)
 
-with walk-forward evaluation on real returns and realized-volatility, sigma
-scans, batch-size and convergence-rate ablations, and a 30-page Typst report.
+with walk-forward evaluation on real returns (magnitude, sign, volatility,
+multi-step), σ scans, batch-size and convergence-rate ablations,
+window-sensitivity studies, theoretical sketch, and a critical
+lookahead-bias correction.
 
 ## Headline findings
 
@@ -21,130 +24,137 @@ scans, batch-size and convergence-rate ablations, and a 30-page Typst report.
 |---|---|
 | Best universal filter on synthetic noise (avg over N1..N6) | **F9 (4×-larger learned CNN), +17.3 dB SNR** |
 | Best classical hand-crafted filter | F2 Kalman, 13.9 dB avg |
-| Best hand-crafted on heavy-tailed noise | F4 Median or F7 Hybrid (+17-18 dB on N3) |
-| Best filter on real daily log-returns | **F0 (no filtering)** — daily returns have no smooth signal to recover |
-| Pure SGD under heavy-tailed (α=1.2) | DIVERGES; rescued by clipping, normalization, or filtering |
-| Filter type catastrophically failing on regime-switch | F2 Kalman (0% convergence on N5 with Adam) |
+| Best hand-crafted on heavy-tailed noise | F4 Median or F7 Hybrid (+17–18 dB on N3) |
+| Best filter on real daily log-returns (causal walk-forward) | **F0 (no filtering)** — daily returns have no smooth signal to recover |
+| Pure SGD under heavy-tailed (α=1.2) | DIVERGES (slope log‖g‖² vs log k = +0.25); rescued by clipping, normalization, or filtering |
+| Filter type catastrophically failing on regime-switch (N5) | F2 Kalman (0% convergence on Adam) |
 | Filter that reduces F0+SGD floor 5× on N3 | AlphaAwareClipper (no filter needed) |
+| Sign prediction on real returns | F0 still wins after lookahead-bias correction (centered median was cheating) |
 
 Full result table: `report.pdf` Conclusion section. Per-iteration log:
-`ITERATIONS.md`.
+`ITERATIONS.md`. TL;DR figure: `figures/tldr_summary.pdf`.
 
-## Layout
+## Project layout
 
 ```
 src/momo/
   noise.py       N1 Gaussian, N2 FARIMA pink, N3 α-stable, N4 mixed,
-                 N5 regime-switch, N6 jump-diffusion
+                 N5 regime-switch, N6 jump-diffusion, N7 Hawkes-clustered
   filters.py     F0 Identity, F1 MA, F2 Kalman, F3 Wavelet, F4 Median,
-                 F6 AdaptiveWavelet, F7 HybridMedianWavelet, F8 AdaptiveMeta
+                 F4c CausalMedian, F6 AdaptiveWavelet, F7 HybridMedianWavelet,
+                 F8 AdaptiveMeta, FE EnsembleAverage
   learnable.py   F5 LearnableCNNFilter (small), F9 LearnableCNNFilterV2 (large)
   metrics.py     SNR, Hurst R/S + DFA, Hill α, McCulloch α, time-to-eps
   tasks.py       QuadraticTask, LogisticTask
-  optim.py       SGD, Clipped-SGD, Normalized-SGD, Adam, AdamW; buffer/data preprocess modes
+  optim.py       SGD, Clipped-SGD, Normalized-SGD, Adam, AdamW;
+                 buffer/data preprocess modes; AlphaAwareClipper hook
   clipping.py    AlphaAwareClipper (online α̂ → adaptive threshold)
   data.py        yfinance pipeline, walk-forward splits, AR(p) ForecastTask
   contracts.py   shared dataclasses
 
 experiments/
-  configs/                   YAML for sweeps
-  fetch_data.py              one-off data pull
-  run_filter_diagnostics.py  10×6 SNR table on synthetic
-  run_synthetic_sweep.py     full F×N×optimizer factorial on synthetic
-  run_real_sweep.py          F×optimizer × ticker on real (no walk-forward)
-  run_real_walkforward.py    F×optimizer × ticker × split (causal)
-  run_real_full_ho.py        + Clipped/Normalized SGD baselines
-  run_volatility_forecast.py F×optimizer × ticker on realized vol
-  run_mode_comparison_sweep.py  buffer-vs-data preprocessing mode
-  run_clipping_ablation.py   clip-on vs clip-off on heavy-tailed
-  run_sigma_scan.py          holdout vs σ scan
-  run_batch_size_ablation.py F×batch_size
-  run_filter_speed_benchmark.py  Pareto qual-vs-time
-  verify_convergence_rate.py empirical slopes log||g||² vs log k
-  train_learnable_filter.py  F5 / F9 training (CNN denoiser)
-  compare_learnable_v1_v2.py F5 vs F9 head-to-head
-  make_*.py                  figure builders
+  configs/                          YAML for sweeps
+  fetch_data.py                     one-off data pull
+  run_filter_diagnostics.py         10-filter × 6-noise SNR table
+  run_synthetic_sweep.py            full F×N×optimizer factorial on synthetic
+  run_real_sweep.py                 simple F × optimizer × ticker on real
+  run_real_walkforward.py           causal walk-forward (F1, F2 already causal)
+  run_real_walkforward_causal.py    explicit-causal version (F4c trailing median)
+  run_real_full_ho.py               + Clipped/Normalized SGD baselines
+  run_real_sign_prediction.py       sign-prediction (centered F4 — has lookahead)
+  run_signpred_causal.py            sign-prediction with causal F4c (corrects iter 28)
+  run_signpred_window_sweep.py      F4 window scan for sign-pred
+  run_volatility_forecast.py        F × optimizer × ticker on realized vol
+  run_mode_comparison_sweep.py      buffer-vs-data preprocessing mode
+  run_clipping_ablation.py          α-clip on/off on heavy-tailed
+  run_sigma_scan.py                 holdout vs σ scan
+  run_batch_size_ablation.py        F × batch_size
+  run_filter_speed_benchmark.py     Pareto qual-vs-time
+  run_window_sensitivity.py         F1/F4/F7 window scan
+  run_meta_routing_sensitivity.py   F8 α-threshold scan
+  run_stress_test.py                α ∈ [1.1, 1.9] stress
+  run_multistep_horizon.py          h ∈ {1,5,10,20} forecast horizon
+  run_cross_asset_transfer.py       train on one ticker, test on another
+  verify_convergence_rate.py        empirical slopes log‖g‖² vs log k
+  train_learnable_filter.py         F5 / F9 training
+  compare_learnable_v1_v2.py        F5 vs F9 head-to-head
+  make_*.py                         figure builders (8 scripts)
 
-tests/                       73 pytest tests
-runs/                        raw .npz per run, indexed in INDEX.md
-tables/                      summary CSVs
-figures/                     30 PDF figures used in the report
-data/cache/                  yfinance parquet cache
-models/                      trained CNN weights (F5: 0.34 MB, F9: 3.3 MB)
+tests/                              82 pytest tests (~10 s)
+runs/                               raw .npz per run, indexed in INDEX.md
+tables/                             21 summary CSVs
+figures/                            34 PDF figures
+data/cache/                         yfinance parquet cache
+models/                             trained CNN weights (F5 0.34 MB, F9 3.3 MB)
 
-report.typ / report.pdf      Russian, ~30 pages, IEEE/proposal style
-refs.bib                     bibliography (24 entries incl. 2020-2026 arXiv)
-ITERATIONS.md                one-liner per innovation
-DECISIONS.md                 engineering choices log
-NOTICE                       third-party licenses
+report.typ / report.pdf             Russian, 41 pages, IEEE/proposal style
+refs.bib                            bibliography (24 entries, 1951–2026)
+ITERATIONS.md                       one-liner per iteration
+DECISIONS.md                        engineering / methodology log
+NOTICE                              third-party licenses
+reproduce.sh                        end-to-end reproduction script
 ```
 
 ## Setup
 
-The system is built and tested on Python 3.12 with PyTorch 2.10 / CUDA 12.8
-already installed. Install the remaining dependencies:
+Tested on Python 3.12 with PyTorch 2.10 / CUDA 12.8 already installed.
 
 ```bash
 pip install --break-system-packages \
   pywavelets pyyaml filterpy hurst joblib pyarrow yfinance
 ```
 
-(The `--break-system-packages` flag is needed only on system-Python installs
-governed by PEP 668. Use a virtualenv if you prefer; `pyproject.toml` lists
-the full dependency set.)
+The `--break-system-packages` flag is needed only on system-Python installs
+governed by PEP 668. For a clean venv use `pyproject.toml`.
 
-## Reproduce baseline (no innovations)
+## Reproduce all results
 
 ```bash
 bash reproduce.sh
 ```
 
-## Reproduce specific iterations
-
-```bash
-PYTHONPATH=src python3 -m pytest -q
-PYTHONPATH=src python3 experiments/fetch_data.py
-PYTHONPATH=src python3 experiments/run_filter_diagnostics.py
-PYTHONPATH=src python3 experiments/run_synthetic_sweep.py --config experiments/configs/synthetic_full.yaml
-PYTHONPATH=src python3 experiments/run_real_walkforward.py
-PYTHONPATH=src python3 experiments/run_clipping_ablation.py
-PYTHONPATH=src python3 experiments/run_sigma_scan.py
-# F5 / F9 training (GPU recommended):
-PYTHONPATH=src python3 experiments/train_learnable_filter.py --steps 40000
-PYTHONPATH=src python3 experiments/train_learnable_filter.py \
-    --steps 60000 --channels 96 --blocks 4 --kernel 11 --batch 96 \
-    --out models/learnable_filter_v2.pt
-PYTHONPATH=src python3 experiments/make_figures.py --runs-dir runs/synthetic_full --summary-csv tables/synthetic_full_summary.csv
-PYTHONPATH=src python3 experiments/make_master_heatmap.py
-typst compile report.typ report.pdf
-```
+This runs the full 44-iteration pipeline: tests, data pull, synthetic
+factorial, real-data walk-forward, all sensitivity scans, F5/F9 training
+(if GPU available), all figure builders, and the Typst compile.
 
 ## Hardware notes
 
-Reference workstation: RTX 2070 SUPER (8 GB) + Ryzen 7 5800X3D (16 threads)
-+ 32 GB RAM. Most sweeps are CPU-bound on numpy; GPU is used only for F5/F9
-training and inference.
+Reference workstation: **RTX 2070 SUPER (8 GB) + Ryzen 7 5800X3D (16 threads)
++ 32 GB RAM**. Most sweeps are CPU-bound on numpy; GPU is used only for
+F5/F9 training and inference.
 
 | Step | Time |
 |---|---|
 | Tests | ~10 s |
-| Synthetic factorial (600 cells, 5 seeds, F0-F4) | ~5 min |
-| Synthetic factorial (840 cells, 5 seeds, F0-F4 + F6-F8) | ~6 min |
+| Synthetic factorial (840 cells, 5 seeds, F0–F4 + F6–F8) | ~6 min |
 | Real walk-forward (2835 cells) | ~50 s |
-| Filter diagnostics (10 filters × 4 noises × 10 seeds) | ~30 s |
+| Filter diagnostics (10 × 6 × 10 seeds) | ~30 s |
 | F5 training (40k steps) | ~10 min on RTX 2070 |
-| F9 training (60k steps, 4× larger model) | ~33 min on RTX 2070 |
+| F9 training (60k steps, 4× larger) | ~33 min on RTX 2070 |
 | Master SNR heatmap (10 × 6 × 10 seeds) | ~30 s |
+| Stress test (500 cells) | ~2 min |
+| Cross-asset transfer (1080 cells) | ~50 s |
+| Convergence-rate verification (450 cells × 4000 steps) | ~4 min |
 | Typst compile | ~1 s |
+
+End-to-end reproduce.sh runtime ≈ 1–1.5 hours on the reference machine.
 
 ## What's in the report
 
 `report.typ` mirrors the proposal sections (Введение, Постановка, Методы,
 Эксперименты, Результаты, Обсуждение, Заключение) and adds a large
-*Дополнительные эксперименты* section covering the 24 innovation iterations.
-The conclusion holds the final scenario→recommendation mapping.
+*Дополнительные эксперименты* section covering all 44 innovation
+iterations. The conclusion holds the final scenario→recommendation
+mapping and the TL;DR figure (`figures/tldr_summary.pdf`) sits in the
+abstract for one-glance comprehension.
+
+Important methodological note: iteration 40 corrected an earlier
+positive sign-prediction result (iteration 28) — the original gain
+turned out to be a lookahead-bias artifact from a centered median
+filter. The causal `CausalMedianFilter` was added and the correction
+documented openly in the report.
 
 ## License / attribution
 
 Third-party libraries are listed in `NOTICE`. Methodology references are in
-`refs.bib`.
+`refs.bib`. Code is the authors'; no Claude attribution requested or added.

@@ -48,6 +48,8 @@ real-data sweep on 9 tickers, Russian Typst report, 57 tests).
 | 40 | **CORRECTION** F4 sign-pred +7pp was lookahead artifact | `CausalMedianFilter`, `figures/signpred_causal.pdf` | Causal median (no future) is *worse* than F0 (0.59 vs 0.60). Sign-pred conclusion reversed. |
 | 41 | Magnitude forecast with fully-causal filters | `experiments/run_real_walkforward_causal.py` | F0 still wins; magnitude conclusion robust (F1, F2 were already causal). |
 | 42 | Bug fix: `_to_returns` partial-failure handling | `src/momo/data.py` | dropna(how="any") → dropna(how="all"); single-ticker yfinance failures no longer wipe entire DataFrame. |
+| 43 | ITERATIONS.md catch-up to iter 42 | `ITERATIONS.md` | Reflects lookahead correction and bugfix. |
+| 44 | TL;DR summary figure (5-panel) | `experiments/make_tldr_figure.py`, `figures/tldr_summary.pdf` | Single-page abstract: SNR heatmap, real-data MSE bar, σ-scan, divergence vs α, sign-pred causal correction. |
 
 After iteration 18:
 - 9 filters (F0–F8 with F5 learnable, F6 adaptive wavelet, F7 hybrid, F8 meta)

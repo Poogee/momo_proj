@@ -159,6 +159,17 @@ class HybridMedianWaveletFilter:
 
 
 @dataclass(frozen=True)
+class EnsembleAverageFilter:
+    median_window: int = 9
+
+    def apply(self, y: np.ndarray) -> np.ndarray:
+        kalman = KalmanLocalLevelFilter(process_var=1e-3, obs_var=1.0).apply(y)
+        median = MedianFilter(window=self.median_window).apply(y)
+        hybrid = HybridMedianWaveletFilter(median_window=5).apply(y)
+        return (kalman + median + hybrid) / 3.0
+
+
+@dataclass(frozen=True)
 class AdaptiveMetaFilter:
     alpha_threshold: float = 1.9
     hurst_residual_threshold: float = 0.65
@@ -193,6 +204,7 @@ FILTER_REGISTRY = {
     "F6": AdaptiveWaveletFilter,
     "F7": HybridMedianWaveletFilter,
     "F8": AdaptiveMetaFilter,
+    "FE": EnsembleAverageFilter,
 }
 
 from momo.learnable import LearnableCNNFilter, LearnableCNNFilterV2  # noqa: E402

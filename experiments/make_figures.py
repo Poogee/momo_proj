@@ -32,11 +32,12 @@ FILTER_LABELS = {
     "F5": "F5 CNN",
     "F6": "F6 Адапт.вейв.",
     "F7": "F7 Медиана+вейв.",
+    "F8": "F8 Мета (адапт.выбор)",
 }
 OPT_LABELS = {"sgd": "SGD", "adam": "Adam", "adamw": "AdamW"}
 
 FILTER_ORDER_BASE = ["F0", "F1", "F2", "F3", "F4"]
-FILTER_ORDER = ["F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7"]
+FILTER_ORDER = ["F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8"]
 NOISE_ORDER = ["N1", "N2", "N3", "N4"]
 OPT_ORDER = ["sgd", "adam", "adamw"]
 

@@ -156,6 +156,32 @@ class HybridMedianWaveletFilter:
         return AdaptiveWaveletFilter(wavelet=self.wavelet, mode=self.mode).apply(pre)
 
 
+@dataclass(frozen=True)
+class AdaptiveMetaFilter:
+    alpha_threshold: float = 1.9
+    hurst_residual_threshold: float = 0.65
+    min_length: int = 64
+
+    def apply(self, y: np.ndarray) -> np.ndarray:
+        from momo.metrics import hurst_dfa, mcculloch_alpha
+        y = np.asarray(y, dtype=float)
+        n = y.size
+        if n < self.min_length:
+            return MedianFilter(window=min(7, max(3, n // 4 * 2 + 1))).apply(y)
+        diff = np.diff(y)
+        alpha_hat = mcculloch_alpha(diff)
+        if not np.isfinite(alpha_hat):
+            alpha_hat = 2.0
+        if alpha_hat < self.alpha_threshold:
+            return HybridMedianWaveletFilter(median_window=5).apply(y)
+        h_hat = hurst_dfa(diff)
+        if not np.isfinite(h_hat):
+            h_hat = 0.5
+        if h_hat > self.hurst_residual_threshold:
+            return AdaptiveWaveletFilter().apply(y)
+        return KalmanLocalLevelFilter(process_var=1e-3, obs_var=1.0).apply(y)
+
+
 FILTER_REGISTRY = {
     "F0": IdentityFilter,
     "F1": MovingAverageFilter,
@@ -164,6 +190,7 @@ FILTER_REGISTRY = {
     "F4": MedianFilter,
     "F6": AdaptiveWaveletFilter,
     "F7": HybridMedianWaveletFilter,
+    "F8": AdaptiveMetaFilter,
 }
 
 from momo.learnable import LearnableCNNFilter  # noqa: E402

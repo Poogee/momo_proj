@@ -58,7 +58,7 @@ def build_noise(name: str, sigma: float = 1.0):
 
 
 def build_filters(include_learnable: bool = True) -> dict:
-    from momo.filters import AdaptiveWaveletFilter, HybridMedianWaveletFilter
+    from momo.filters import AdaptiveMetaFilter, AdaptiveWaveletFilter, HybridMedianWaveletFilter
     base = {
         "F0": IdentityFilter(),
         "F1": MovingAverageFilter(window=21),
@@ -67,6 +67,7 @@ def build_filters(include_learnable: bool = True) -> dict:
         "F4": MedianFilter(window=21),
         "F6": AdaptiveWaveletFilter(),
         "F7": HybridMedianWaveletFilter(),
+        "F8": AdaptiveMetaFilter(),
     }
     if include_learnable:
         try:

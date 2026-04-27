@@ -82,7 +82,8 @@ class WaveletThresholdFilter:
             lam = sigma_hat * float(np.sqrt(2.0 * np.log(max(n, 2))))
         new_coeffs = [coeffs[0]]
         for d in coeffs[1:]:
-            new_coeffs.append(pywt.threshold(d, lam, mode=self.mode))
+            with np.errstate(invalid="ignore", divide="ignore"):
+                new_coeffs.append(np.nan_to_num(pywt.threshold(d, lam, mode=self.mode), nan=0.0))
         rec = pywt.waverec(new_coeffs, wavelet, mode="symmetric")
         return np.asarray(rec[:n], dtype=float)
 
@@ -140,7 +141,8 @@ class AdaptiveWaveletFilter:
         lam = self.base_factor * scale * float(np.sqrt(2.0 * np.log(max(n, 2)))) * boost
         new_coeffs = [coeffs[0]]
         for d in coeffs[1:]:
-            new_coeffs.append(pywt.threshold(d, lam, mode=self.mode))
+            with np.errstate(invalid="ignore", divide="ignore"):
+                new_coeffs.append(np.nan_to_num(pywt.threshold(d, lam, mode=self.mode), nan=0.0))
         rec = pywt.waverec(new_coeffs, wavelet, mode="symmetric")
         return np.asarray(rec[:n], dtype=float)
 

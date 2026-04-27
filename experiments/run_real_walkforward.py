@@ -40,6 +40,16 @@ FILTERS_BUILDERS = {
 }
 
 
+def all_optimizers():
+    return {
+        "sgd": {"lr": 5e-1, "weight_decay": 0.0},
+        "clipped_sgd": {"lr": 5e-1, "weight_decay": 0.0},
+        "normalized_sgd": {"lr": 1e-3, "weight_decay": 0.0},
+        "adam": {"lr": 1e-2, "weight_decay": 0.0},
+        "adamw": {"lr": 1e-2, "weight_decay": 1e-4},
+    }
+
+
 class _LinearForecast:
     def __init__(self, p: int):
         self.p = p

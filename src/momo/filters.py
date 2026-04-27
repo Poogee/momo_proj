@@ -159,6 +159,21 @@ class HybridMedianWaveletFilter:
 
 
 @dataclass(frozen=True)
+class CausalMedianFilter:
+    window: int = 5
+
+    def apply(self, y: np.ndarray) -> np.ndarray:
+        y = np.asarray(y, dtype=float)
+        w = max(1, int(self.window))
+        n = y.size
+        out = np.empty(n, dtype=float)
+        for i in range(n):
+            lo = max(0, i - w + 1)
+            out[i] = float(np.median(y[lo : i + 1]))
+        return out
+
+
+@dataclass(frozen=True)
 class EnsembleAverageFilter:
     median_window: int = 9
 

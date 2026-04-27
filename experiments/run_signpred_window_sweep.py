@@ -18,7 +18,7 @@ import yaml
 from joblib import Parallel, delayed
 
 from momo.data import fetch_returns, make_walk_forward_splits
-from momo.filters import IdentityFilter, MedianFilter
+from momo.filters import CausalMedianFilter, IdentityFilter, MedianFilter
 from momo.noise import GaussianNoise
 from momo.optim import run_optimization
 from momo.tasks import LogisticTask, _sigmoid

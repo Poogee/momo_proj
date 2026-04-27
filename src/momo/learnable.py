@@ -10,6 +10,7 @@ import torch.nn as nn
 
 
 DEFAULT_WEIGHTS_PATH = str(Path(__file__).resolve().parent.parent.parent / "models" / "learnable_filter.pt")
+DEFAULT_WEIGHTS_PATH_V2 = str(Path(__file__).resolve().parent.parent.parent / "models" / "learnable_filter_v2.pt")
 
 
 class ResidualConvBlock(nn.Module):
@@ -127,3 +128,11 @@ class LearnableCNNFilter:
 
 def count_parameters(model: nn.Module) -> int:
     return sum(p.numel() for p in model.parameters())
+
+
+@dataclass
+class LearnableCNNFilterV2(LearnableCNNFilter):
+    weights_path: str = DEFAULT_WEIGHTS_PATH_V2
+    channels: int = 96
+    kernel_size: int = 11
+    n_blocks: int = 4

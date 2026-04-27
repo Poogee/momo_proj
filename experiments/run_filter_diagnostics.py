@@ -71,8 +71,9 @@ def build_filters(include_learnable: bool = True) -> dict:
     }
     if include_learnable:
         try:
-            from momo.learnable import LearnableCNNFilter
+            from momo.learnable import LearnableCNNFilter, LearnableCNNFilterV2
             base["F5"] = LearnableCNNFilter()
+            base["F9"] = LearnableCNNFilterV2()
         except Exception:
             pass
     return base

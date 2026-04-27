@@ -195,6 +195,11 @@ FILTER_REGISTRY = {
     "F8": AdaptiveMetaFilter,
 }
 
+from momo.learnable import LearnableCNNFilter, LearnableCNNFilterV2  # noqa: E402
+
+FILTER_REGISTRY["F5"] = LearnableCNNFilter
+FILTER_REGISTRY["F9"] = LearnableCNNFilterV2
+
 from momo.learnable import LearnableCNNFilter  # noqa: E402
 
 FILTER_REGISTRY["F5"] = LearnableCNNFilter

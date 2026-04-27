@@ -40,6 +40,18 @@ FILTERS_BUILDERS = {
 }
 
 
+def _add_learnable():
+    try:
+        from momo.learnable import LearnableCNNFilter, LearnableCNNFilterV2
+        FILTERS_BUILDERS["F5"] = lambda: LearnableCNNFilter()
+        FILTERS_BUILDERS["F9"] = lambda: LearnableCNNFilterV2()
+    except Exception:
+        pass
+
+
+_add_learnable()
+
+
 def all_optimizers():
     return {
         "sgd": {"lr": 5e-1, "weight_decay": 0.0},

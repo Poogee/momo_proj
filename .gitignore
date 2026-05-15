@@ -1,0 +1,16 @@
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.log
+*.o
+*.so
+*.dylib
+a.out
+__pycache__/
+.ipynb_checkpoints/
+# downloaded course material (copyrighted, not redistributed)
+.src/

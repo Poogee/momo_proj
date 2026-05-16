@@ -133,9 +133,57 @@ def fig_real_mse():
     plt.close(fig)
 
 
+def fig_semisynthetic():
+    d = pd.read_csv(ROOT / "tables/semisynthetic_summary.csv")
+    d = d[d.optimizer == "adam"]
+    piv = d.pivot_table(index="filter", columns="snr_target",
+                        values="holdout_mse", aggfunc="mean")
+    order = ["F0", "F1 MA", "F2 Kalman", "F3 Wavelet", "F4 Median"]
+    piv = piv.reindex([f for f in order if f in piv.index])
+    snrs = sorted(piv.columns)
+    fig, ax = plt.subplots(figsize=(6.6, 3.4))
+    x = np.arange(len(piv.index))
+    w = 0.25
+    for k, snr in enumerate(snrs):
+        ax.bar(x + (k - 1) * w, piv[snr].values, w,
+               label=f"SNR {snr:+.0f} дБ")
+    ax.set_xticks(x, piv.index, rotation=12, ha="right")
+    ax.set_ylabel("holdout MSE восстановления $s$ (ниже — лучше)")
+    ax.set_title("Полусинтетика: реальный шум доходностей + известный сигнал")
+    ax.legend(fontsize=8)
+    ax.grid(alpha=0.3, axis="y")
+    fig.tight_layout()
+    fig.savefig(FIG / "semisynthetic.pdf", bbox_inches="tight")
+    plt.close(fig)
+
+
+def fig_microstructure():
+    d = pd.read_csv(ROOT / "tables/microstructure_summary.csv")
+    d = d[d.regime == "gauss"]
+    piv = d.pivot_table(index="filter", columns="gamma",
+                        values="rel_err", aggfunc="median")
+    order = ["F0 raw", "F1 MA", "F2 Kalman", "F3 Wavelet", "F4 Median"]
+    piv = piv.reindex([f for f in order if f in piv.index])
+    fig, ax = plt.subplots(figsize=(6.0, 3.4))
+    for f in piv.index:
+        ax.plot(piv.columns, piv.loc[f].values, marker="o", label=f)
+    ax.set_xlabel(r"шум/сигнал $\gamma$")
+    ax.set_ylabel(r"медиана $|RV-IV|/IV$ (ниже — лучше)")
+    ax.set_title("Микроструктура: оценка интегрированной дисперсии")
+    ax.set_yscale("log")
+    ax.legend(fontsize=8)
+    ax.grid(alpha=0.3, which="both")
+    fig.tight_layout()
+    fig.savefig(FIG / "microstructure.pdf", bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     fig_convergence()
     fig_snr_heatmap()
     fig_synth_bars()
     fig_real_mse()
-    print("wrote: conv_curves.pdf snr_heatmap.pdf synth_bars.pdf real_mse.pdf")
+    fig_semisynthetic()
+    fig_microstructure()
+    print("wrote: conv_curves snr_heatmap synth_bars real_mse "
+          "semisynthetic microstructure (.pdf)")

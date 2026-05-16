@@ -1,3 +1,21 @@
+"""Stochastic optimization with denoising applied to the observed series.
+
+Per the project spec (tex_project_proposal.pdf), the observed series is
+``y_t = s_t + xi_t`` and a denoising filter F is applied to ``y`` *before*
+the optimizer sees it. The stochastic gradient at each step is therefore
+computed from the filtered (smoothed) series, not from the raw observations.
+
+Two preprocessing modes are supported:
+
+* ``"series"`` (canonical, default) -- the filter is applied to the observed
+  noise/series trajectory before it enters the gradient. This is the mode the
+  project is about and the one all reported results should use.
+* ``"buffer"`` (legacy) -- the filter is applied to a sliding window of past
+  *gradients*. Kept only for backward-compatible ablation; not the spec.
+
+``"data"`` is accepted as a backward-compatible alias of ``"series"``.
+"""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -133,7 +151,7 @@ def run_optimization(
     weight_decay: float = 1e-4,
     log_every: int = 1,
     noise_scale: float = 1.0,
-    preprocess_mode: str = "buffer",
+    preprocess_mode: str = "series",
     clipper: Any = None,
 ) -> OptimResult:
     rng = np.random.default_rng(seed)
@@ -150,7 +168,7 @@ def run_optimization(
     loss_history = np.empty(steps, dtype=float)
     x_history[0] = x
 
-    if preprocess_mode == "data":
+    if preprocess_mode in ("series", "data"):
         traj = _build_noise_trajectory(noise, steps, dim, rng, noise_scale)
         filt_traj = _prefilter_columns(traj, filt)
         for k in range(steps):
@@ -193,7 +211,7 @@ def run_optimization(
         "noise_scale": noise_scale,
         "log_every": log_every,
         "dim": dim,
-        "preprocess_mode": preprocess_mode,
+        "preprocess_mode": "series" if preprocess_mode in ("series", "data") else preprocess_mode,
     }
     return OptimResult(
         x_history=x_history,

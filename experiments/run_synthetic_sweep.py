@@ -120,6 +120,7 @@ def run_one(task_name: str, task_spec: dict, filt_name: str, filt_spec: dict,
         seed=seed,
         buffer_size=buffer_size,
         weight_decay=opt_spec.get("weight_decay", 0.0),
+        preprocess_mode="series",
     )
     elapsed = time.perf_counter() - t0
     g_curve = result.grad_norm_sq_history

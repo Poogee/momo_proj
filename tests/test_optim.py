@@ -79,6 +79,50 @@ def test_filter_changes_results():
     assert not np.array_equal(res_f0.x_history, res_f1.x_history)
 
 
+def test_default_mode_is_series_filtering():
+    """Per spec, the filter must act on the observed series by default,
+    not on the gradient buffer."""
+    task = make_quadratic(dim=8, condition_number=3.0, seed=0)
+    noise = GaussianNoise(sigma=0.3)
+    res = run_optimization(
+        task=task, optimizer="sgd", noise=noise, filt=IdentityFilter(),
+        steps=50, lr=1e-2, seed=5,
+    )
+    assert res.config["preprocess_mode"] == "series"
+
+
+def test_series_and_buffer_modes_differ():
+    """A non-trivial filter applied to the series vs to the gradient buffer
+    must produce different trajectories."""
+    task = make_quadratic(dim=10, condition_number=3.0, seed=0)
+    noise = GaussianNoise(sigma=0.5)
+    filt = MovingAverageFilter(window=8)
+    res_series = run_optimization(
+        task=task, optimizer="sgd", noise=noise, filt=filt,
+        steps=200, lr=1e-2, seed=7, buffer_size=16, preprocess_mode="series",
+    )
+    res_buffer = run_optimization(
+        task=task, optimizer="sgd", noise=noise, filt=filt,
+        steps=200, lr=1e-2, seed=7, buffer_size=16, preprocess_mode="buffer",
+    )
+    assert not np.array_equal(res_series.x_history, res_buffer.x_history)
+
+
+def test_data_is_alias_of_series():
+    task = make_quadratic(dim=8, condition_number=3.0, seed=0)
+    noise = GaussianNoise(sigma=0.3)
+    filt = MovingAverageFilter(window=4)
+    res_series = run_optimization(
+        task=task, optimizer="sgd", noise=noise, filt=filt,
+        steps=100, lr=1e-2, seed=9, preprocess_mode="series",
+    )
+    res_data = run_optimization(
+        task=task, optimizer="sgd", noise=noise, filt=filt,
+        steps=100, lr=1e-2, seed=9, preprocess_mode="data",
+    )
+    assert np.array_equal(res_series.x_history, res_data.x_history)
+
+
 def test_adamw_weight_decay_shrinks_x():
     task = make_quadratic(dim=20, condition_number=5.0, seed=0)
     noise = GaussianNoise(sigma=0.1)

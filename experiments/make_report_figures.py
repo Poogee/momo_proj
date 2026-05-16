@@ -133,6 +133,36 @@ def fig_real_mse():
     plt.close(fig)
 
 
+def fig_speed():
+    """Primary metric: convergence speed T(eps) on the quadratic task."""
+    s = pd.read_csv(ROOT / "tables/synthetic_speed_summary.csv")
+    q = s[s.task == "quadratic"].copy()
+    cap = int(s["steps"].iloc[0]) if "steps" in s.columns else 2000
+    q["teps"] = q.t_eps.replace(-1, cap)
+    order = ["F0", "F1", "F2", "F3", "F4", "FA"]
+    lbl = {"F0": "F0 без фильтра", "F1": "F1 MA", "F2": "F2 Калман",
+           "F3": "F3 вейвлет", "F4": "F4 медиана", "FA": "FA онлайн-адапт."}
+    piv = q.pivot_table(index="filter", columns="noise",
+                        values="teps", aggfunc="median").reindex(order)[NOISE]
+    fig, ax = plt.subplots(figsize=(7.0, 3.6))
+    x = np.arange(len(NOISE))
+    w = 0.14
+    cols = ["#888888", "#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#e6a000"]
+    for k, f in enumerate(order):
+        ax.bar(x + (k - 2.5) * w, piv.loc[f].values, w,
+               color=cols[k], label=lbl[f])
+    ax.axhline(cap, ls="--", lw=0.8, color="k")
+    ax.text(0.02, cap * 0.95, "не сошёлся", fontsize=7, va="top")
+    ax.set_xticks(x, [NOISE_LBL[n] for n in NOISE])
+    ax.set_ylabel(r"медиана $T(\varepsilon{=}0.1)$, итераций (ниже — быстрее)")
+    ax.set_title("Скорость сходимости (квадратичная, Adam, $\\sigma=0.15$)")
+    ax.legend(fontsize=7, ncol=3)
+    ax.grid(alpha=0.3, axis="y")
+    fig.tight_layout()
+    fig.savefig(FIG / "speed.pdf", bbox_inches="tight")
+    plt.close(fig)
+
+
 def fig_semisynthetic():
     d = pd.read_csv(ROOT / "tables/semisynthetic_summary.csv")
     d = d[d.optimizer == "adam"]
@@ -162,7 +192,8 @@ def fig_microstructure():
     d = d[d.regime == "gauss"]
     piv = d.pivot_table(index="filter", columns="gamma",
                         values="rel_err", aggfunc="median")
-    order = ["F0 raw", "F1 MA", "F2 Kalman", "F3 Wavelet", "F4 Median"]
+    order = ["F0 raw", "F1 MA", "F2 Kalman", "F3 Wavelet", "F4 Median",
+             "FA online"]
     piv = piv.reindex([f for f in order if f in piv.index])
     fig, ax = plt.subplots(figsize=(6.0, 3.4))
     for f in piv.index:
@@ -181,9 +212,10 @@ def fig_microstructure():
 if __name__ == "__main__":
     fig_convergence()
     fig_snr_heatmap()
+    fig_speed()
     fig_synth_bars()
     fig_real_mse()
     fig_semisynthetic()
     fig_microstructure()
-    print("wrote: conv_curves snr_heatmap synth_bars real_mse "
+    print("wrote: conv_curves snr_heatmap speed synth_bars real_mse "
           "semisynthetic microstructure (.pdf)")

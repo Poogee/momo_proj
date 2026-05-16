@@ -29,6 +29,7 @@ from momo.filters import (
     IdentityFilter,
     KalmanLocalLevelFilter,
     MovingAverageFilter,
+    OnlineAdaptiveFilter,
     WaveletThresholdFilter,
 )
 
@@ -39,6 +40,7 @@ FILTERS = {
     "F3 Wavelet": lambda: WaveletThresholdFilter(wavelet="db4", mode="soft",
                                                  threshold="universal"),
     "F4 Median": lambda: CausalMedianFilter(window=5),
+    "FA online": lambda: OnlineAdaptiveFilter(window=9, k=3.0),
 }
 
 

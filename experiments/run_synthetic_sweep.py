@@ -56,6 +56,10 @@ def build_filter(spec: dict):
     if kind == "meta":
         from momo.filters import AdaptiveMetaFilter
         return AdaptiveMetaFilter()
+    if kind == "online_adaptive":
+        from momo.filters import OnlineAdaptiveFilter
+        return OnlineAdaptiveFilter(window=spec.get("window", 9),
+                                    k=spec.get("k", 3.0))
     raise ValueError(kind)
 
 

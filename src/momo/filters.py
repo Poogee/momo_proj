@@ -174,6 +174,52 @@ class CausalMedianFilter:
 
 
 @dataclass(frozen=True)
+class OnlineAdaptiveFilter:
+    """Causal, online filter that adapts per step to local noise character.
+
+    For each new point it inspects only the trailing window (no lookahead),
+    estimates a robust scale (MAD) and the fraction of points beyond
+    ``k`` MADs from the local median. If outliers are present (heavy-tailed
+    / contaminated regime) it emits the trailing *median* (robust); if the
+    window looks light-tailed it emits the trailing *mean* (statistically
+    efficient). This automates the "diagnose then decide" rule online,
+    without knowing the noise type in advance.
+    """
+
+    window: int = 9
+    k: float = 3.0
+    beta: float = 0.7
+    warmup: int = 3
+
+    def apply(self, y: np.ndarray) -> np.ndarray:
+        y = np.asarray(y, dtype=float)
+        n = y.size
+        if n == 0:
+            return y.copy()
+        w = max(3, int(self.window))
+        b = float(self.beta)
+        out = np.empty(n, dtype=float)
+        ema = float(y[0])
+        for i in range(n):
+            lo = max(0, i - w + 1)
+            win = y[lo : i + 1]
+            if win.size < self.warmup:
+                ema = b * ema + (1.0 - b) * float(y[i])
+                out[i] = ema
+                continue
+            med = float(np.median(win))
+            mad = float(np.median(np.abs(win - med))) * 1.4826
+            is_outlier = mad > 1e-12 and abs(float(y[i]) - med) > self.k * mad
+            # robustify the EMA update against the current spike
+            ema = b * ema + (1.0 - b) * (med if is_outlier else float(y[i]))
+            frac_out = (float(np.mean(np.abs(win - med) > self.k * mad))
+                        if mad > 1e-12 else 0.0)
+            # heavy / contaminated window -> robust median; else tracking EMA
+            out[i] = med if frac_out > 0.0 else ema
+        return out
+
+
+@dataclass(frozen=True)
 class EnsembleAverageFilter:
     median_window: int = 9
 
@@ -219,6 +265,7 @@ FILTER_REGISTRY = {
     "F6": AdaptiveWaveletFilter,
     "F7": HybridMedianWaveletFilter,
     "F8": AdaptiveMetaFilter,
+    "FA": OnlineAdaptiveFilter,
     "FE": EnsembleAverageFilter,
 }
 

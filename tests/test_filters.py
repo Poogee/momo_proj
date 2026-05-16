@@ -145,8 +145,32 @@ def test_all_filters_run_on_various_sizes():
             assert np.all(np.isfinite(out))
 
 
+def test_online_adaptive_causal_and_robust():
+    from momo.filters import OnlineAdaptiveFilter
+
+    rng = np.random.default_rng(7)
+    T = 1500
+    base = rng.normal(0, 1, T)
+    contaminated = base.copy()
+    idx = rng.choice(T, size=int(0.05 * T), replace=False)
+    contaminated[idx] += 30.0 * rng.choice([-1.0, 1.0], size=idx.size)
+
+    f = OnlineAdaptiveFilter(window=9, k=3.0)
+    out = f.apply(contaminated)
+    assert out.shape == contaminated.shape
+    assert np.all(np.isfinite(out))
+
+    # causality: output at i must not depend on samples after i
+    prefix_out = f.apply(contaminated[:800])
+    assert np.allclose(prefix_out, out[:800], atol=1e-9)
+
+    # robustness: closer to clean base than the raw contaminated series
+    assert np.mean((out - base) ** 2) < np.mean((contaminated - base) ** 2)
+
+
 def test_registry_keys_present():
     assert {"F0", "F1", "F2", "F3", "F4"}.issubset(set(FILTER_REGISTRY.keys()))
+    assert "FA" in FILTER_REGISTRY
     assert FILTER_REGISTRY["F0"] is IdentityFilter
     assert FILTER_REGISTRY["F1"] is MovingAverageFilter
     assert FILTER_REGISTRY["F2"] is KalmanLocalLevelFilter

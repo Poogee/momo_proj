@@ -7,10 +7,10 @@ filters:
   FA: {kind: online_adaptive, window: 9, k: 3.0}
 
 noises:
-  N1: {kind: gaussian, sigma: 0.15}
-  N2: {kind: pink, d: 0.3, sigma: 0.15}
-  N3: {kind: stable, alpha: 1.7, sigma: 0.15}
-  N4: {kind: mixed, d: 0.25, alpha: 1.7, sigma: 0.15}
+  N1: {kind: gaussian, sigma: 0.05}
+  N2: {kind: pink, d: 0.3, sigma: 0.05}
+  N3: {kind: stable, alpha: 1.7, sigma: 0.05}
+  N4: {kind: mixed, d: 0.25, alpha: 1.7, sigma: 0.05}
 
 optimizers:
   sgd: {lr: 1.0e-2, weight_decay: 0.0}
@@ -22,7 +22,7 @@ tasks:
   logistic: {n: 4000, dim: 20, n_test: 1000, noise_scale: 0.15, lr: 5.0e-2}
 
 run:
-  steps: 2000
+  steps: 15000
   buffer_size: 32
   batch_size: 32
   n_seeds: 5

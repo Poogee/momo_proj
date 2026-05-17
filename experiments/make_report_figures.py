@@ -149,15 +149,19 @@ def fig_speed():
     w = 0.14
     cols = ["#888888", "#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#e6a000"]
     for k, f in enumerate(order):
-        ax.bar(x + (k - 2.5) * w, piv.loc[f].values, w,
-               color=cols[k], label=lbl[f])
+        vals = np.clip(piv.loc[f].values, 1, None)
+        ax.bar(x + (k - 2.5) * w, vals, w, color=cols[k], label=lbl[f])
     ax.axhline(cap, ls="--", lw=0.8, color="k")
-    ax.text(0.02, cap * 0.95, "не сошёлся", fontsize=7, va="top")
+    ax.text(0.02, cap * 0.78, "floor-limited\n(не сошёлся)", fontsize=7,
+            va="top")
+    ax.set_yscale("log")
+    ax.set_ylim(1, cap * 1.4)
     ax.set_xticks(x, [NOISE_LBL[n] for n in NOISE])
-    ax.set_ylabel(r"медиана $T(\varepsilon{=}0.1)$, итераций (ниже — быстрее)")
-    ax.set_title("Скорость сходимости (квадратичная, Adam, $\\sigma=0.15$)")
-    ax.legend(fontsize=7, ncol=3)
-    ax.grid(alpha=0.3, axis="y")
+    ax.set_ylabel(r"медиана $T(\varepsilon{=}0.1)$, итер. (лог, ниже—быстрее)")
+    ax.set_title(r"Скорость сходимости (квадратичная, Adam, "
+                 r"$\sigma=0.05$, до 15000 шагов)")
+    ax.legend(fontsize=7, ncol=3, loc="upper left")
+    ax.grid(alpha=0.3, axis="y", which="both")
     fig.tight_layout()
     fig.savefig(FIG / "speed.pdf", bbox_inches="tight")
     plt.close(fig)

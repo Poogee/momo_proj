@@ -105,15 +105,20 @@ def fig_applied(summ_csv, out):
     x = np.arange(len(doms))
     w = 0.8 / max(len(filt), 1)
     for i, fk in enumerate(filt):
-        tc = [float(s[(s.domain == d) & (s["filter"] == fk)]
-                    ["t_conv_med"].iloc[0])
-              if not s[(s.domain == d) & (s["filter"] == fk)].empty
-              else np.nan for d in doms]
-        axes[0].bar(x + i * w, tc, w, label=fk)
+        spd = []
+        for d in doms:
+            r = s[(s.domain == d) & (s["filter"] == fk)]
+            t = float(r["t_conv_med"].iloc[0]) if not r.empty else np.nan
+            # speed = 10^3 / iterations: higher = faster (intuitive);
+            # a non-converged cell (t = cap) gives a small bar.
+            spd.append(1000.0 / t if np.isfinite(t) and t > 0 else np.nan)
+        axes[0].bar(x + i * w, spd, w, label=fk)
     axes[0].set_xticks(x + 0.4 - w / 2)
     axes[0].set_xticklabels(doms, rotation=20, ha="right", fontsize=8)
-    axes[0].set_ylabel("итераций до 100× падения ‖∇‖² (Adam)")
-    axes[0].set_title("(а) Скорость сходимости по доменам")
+    axes[0].set_ylabel(r"скорость сходимости $10^{3}/T$ "
+                       "(выше — быстрее)")
+    axes[0].set_title(r"(а) Скорость по доменам; $T$ — итераций до "
+                      r"$100\times$ падения $\|\nabla f\|^2$ (Adam)")
     axes[0].legend(fontsize=7, ncol=2)
     for i, fk in enumerate(filt):
         hm = [float(s[(s.domain == d) & (s["filter"] == fk)]

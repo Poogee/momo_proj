@@ -227,7 +227,7 @@ holdout MSE.
 F0 лучший. Картина сбалансирована: фильтр спасает сходимость там, где
 шум доминирует над восстановимым сигналом, и нейтрален/вреден иначе.
 
-#figure(image("figures/applied_convergence.pdf", width: 92%), caption: [Применённый causal-эксперимент по доменам (Adam): (а) итераций до сходимости; (б) causal walk-forward holdout MSE. На фин. 15-мин F2 спасает сходимость (≈78×) без потери качества.]) <fig:applied>
+#figure(image("figures/applied_convergence.pdf", width: 92%), caption: [Применённый causal-эксперимент по доменам (Adam): (а) скорость сходимости $10^3\/T$ ($T$ — итераций до 100× падения $norm(nabla f)^2$; выше — быстрее); (б) causal walk-forward holdout MSE. На фин. 15-мин F2 спасает сходимость (≈78×) без потери качества.]) <fig:applied>
 
 Анализ покрытия α̂/Ĥ доменов и калибровка по ним --- в разделе 5;
 диагностические значения вынесены в `tables/real_noise_calibration.csv`.

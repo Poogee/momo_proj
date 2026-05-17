@@ -193,6 +193,28 @@ def fig_intraday():
     plt.close(fig)
 
 
+def fig_real_conv():
+    d = pd.read_csv(ROOT / "tables/real_convergence_summary.csv")
+    order = ["F0", "F1", "F2", "F3", "F4", "FA"]
+    cols = ["#888888", "#1f77b4", "#d62728", "#2ca02c", "#9467bd", "#e6a000"]
+    dsets = ["daily", "5min", "1min"]
+    fig, axes = plt.subplots(1, 3, figsize=(11, 3.4), sharey=True)
+    for ax, dn in zip(axes, dsets):
+        sub = d[(d.data == dn) & (d.optimizer == "adam")]
+        piv = sub.groupby("filter").t_conv.median().reindex(order)
+        ax.bar(range(len(order)), piv.values, color=cols)
+        ax.set_xticks(range(len(order)), order)
+        ax.set_title(f"{dn} (Adam)")
+        ax.set_yscale("log")
+        ax.grid(alpha=0.3, axis="y", which="both")
+    axes[0].set_ylabel("итераций до сходимости (лог, ниже — быстрее)")
+    fig.suptitle("Реальные данные: сходимость обучения AR(5) "
+                 "(SGD не сходится за 4000 — не показан)", y=1.02)
+    fig.tight_layout()
+    fig.savefig(FIG / "real_conv.pdf", bbox_inches="tight")
+    plt.close(fig)
+
+
 def fig_semisynthetic():
     d = pd.read_csv(ROOT / "tables/semisynthetic_summary.csv")
     d = d[d.optimizer == "adam"]
@@ -245,8 +267,9 @@ if __name__ == "__main__":
     fig_speed()
     fig_synth_bars()
     fig_real_mse()
+    fig_real_conv()
     fig_semisynthetic()
     fig_microstructure()
     fig_intraday()
-    print("wrote: conv_curves snr_heatmap speed synth_bars real_mse "
-          "semisynthetic microstructure intraday (.pdf)")
+    print("wrote: conv_curves snr_heatmap speed real_conv synth_bars "
+          "real_mse semisynthetic microstructure intraday (.pdf)")

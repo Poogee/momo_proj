@@ -220,3 +220,101 @@ plt.grid(True, which="both", alpha=0.3); plt.legend(); plt.tight_layout()
 plt.savefig(FIG + "newton_hfn.png", dpi=130)
 plt.close()
 print("saved newton figures")
+
+# %% [markdown]
+# ## (h) Scaling experiment: $d\in\{100,500,2000,5000\}$
+#
+# The base task ($d=100$) favours the explicit Hessian — for small $d$ forming
+# and factorising the $d\times d$ matrix ($O(d^2)$ memory, $O(d^3)$ solve) is
+# cheaper than the autodiff HVP overhead.  As $d$ grows the $d\times d$ Hessian
+# becomes the bottleneck.  Hessian-Free Newton never forms $\nabla^2 f$: each CG
+# step needs only $\nabla^2 f(w)v=X^\top(D\,(Xv))$ via `jax.jvp(jax.grad f)`,
+# $O(md)$ time and $O(d)$ memory.  We hold $m=2000$, $\mu=1$ (so $f$ is
+# $\mu$-strongly convex, Lecture 11, and Newton/Newton-CG keep the quadratic
+# local rate) and sweep $d$.
+
+# %%
+def make_problem(d, m=2000, mu=1.0):
+    k = jax.random.PRNGKey(0)
+    kx, kw = jax.random.split(k)
+    Xd = jax.random.normal(kx, (m, d))
+    ws = jax.random.normal(kw, (d,))
+    yd = (jax.nn.sigmoid(Xd @ ws) > 0.5).astype(jnp.float64)
+
+    def fd(w):
+        z = Xd @ w
+        return jnp.sum(jax.nn.softplus(z) - yd * z) + 0.5 * mu * jnp.dot(w, w)
+
+    return fd
+
+
+def solve_explicit(fd, d, nit):
+    g_fn = jax.jit(jax.grad(fd)); H_fn = jax.jit(jax.hessian(fd))
+    w = jnp.zeros(d)
+    for _ in range(nit):
+        w = w - jnp.linalg.solve(H_fn(w), g_fn(w))
+    return w
+
+
+def solve_ncg(fd, d, nit, hessian_free):
+    g_fn = jax.jit(jax.grad(fd))
+    if hessian_free:
+        mv = jax.jit(lambda w, v: jax.jvp(jax.grad(fd), (w,), (v,))[1])
+    else:
+        H_fn = jax.jit(jax.hessian(fd))
+    w = jnp.zeros(d)
+    for _ in range(nit):
+        g = g_fn(w)
+        A = (lambda v: mv(w, v)) if hessian_free else (lambda v, H=H_fn(w): H @ v)
+        dk, _ = jax_cg(A, -g, tol=1e-7, maxiter=300)
+        w = w + dk
+    return w
+
+
+D_LIST = [100, 500, 2000, 5000]
+NIT = 10
+res = {"explicit": [], "ncg": [], "hfn": []}
+grad_norm = {"explicit": [], "ncg": [], "hfn": []}
+for d_s in D_LIST:
+    fd = make_problem(d_s)
+    gfd = jax.jit(jax.grad(fd))
+    for name, fn in [
+        ("explicit", lambda nit, fd=fd, d_s=d_s: solve_explicit(fd, d_s, nit)),
+        ("ncg", lambda nit, fd=fd, d_s=d_s: solve_ncg(fd, d_s, nit, False)),
+        ("hfn", lambda nit, fd=fd, d_s=d_s: solve_ncg(fd, d_s, nit, True)),
+    ]:
+        fn(1).block_until_ready()                       # JIT warm-up
+        t0 = time.perf_counter()
+        w = fn(NIT); w.block_until_ready()
+        dt = time.perf_counter() - t0
+        res[name].append(dt * 1e3)
+        grad_norm[name].append(float(jnp.linalg.norm(gfd(w))))
+    print(f"d={d_s:5d}  dense-H mem={d_s*d_s*8/1e6:7.1f} MB | "
+          f"explicit={res['explicit'][-1]:8.1f} ms  "
+          f"Newton-CG(dense)={res['ncg'][-1]:8.1f} ms  "
+          f"HFN={res['hfn'][-1]:8.1f} ms  "
+          f"(||g||~{grad_norm['hfn'][-1]:.0e})")
+
+speedup = [e / h for e, h in zip(res["explicit"], res["hfn"])]
+print("HFN speedup over explicit Newton:",
+      ", ".join(f"d={d}:{su:.1f}x" for d, su in zip(D_LIST, speedup)))
+
+fig, ax = plt.subplots(1, 2, figsize=(12, 4.4))
+ax[0].loglog(D_LIST, res["explicit"], "o-", label="Newton (explicit $H$)")
+ax[0].loglog(D_LIST, res["ncg"], "s-", label="Newton-CG (dense $H$)")
+ax[0].loglog(D_LIST, res["hfn"], "^-", label="Hessian-Free NCG")
+ax[0].set_xlabel("dimension $d$"); ax[0].set_ylabel("wall time, ms (10 Newton steps)")
+ax[0].set_title(r"Time scaling, $m=2000$, $\mu=1$")
+ax[0].grid(True, which="both", alpha=0.3); ax[0].legend()
+
+mem_dense = [d * d * 8 / 1e6 for d in D_LIST]
+mem_hfn = [d * 8 / 1e6 for d in D_LIST]
+ax[1].loglog(D_LIST, mem_dense, "o-", label=r"explicit $H$: $d^2$ floats")
+ax[1].loglog(D_LIST, mem_hfn, "^-", label=r"HFN: $O(d)$ vectors")
+ax[1].set_xlabel("dimension $d$"); ax[1].set_ylabel("Hessian storage, MB")
+ax[1].set_title("Memory: $O(d^2)$ vs $O(d)$")
+ax[1].grid(True, which="both", alpha=0.3); ax[1].legend()
+plt.tight_layout()
+plt.savefig(FIG + "newton_scaling.png", dpi=130)
+plt.close()
+print("saved figures/newton_scaling.png")

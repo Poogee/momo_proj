@@ -103,13 +103,24 @@ def subgrad(lam, iters, track=False):
     return W, np.array(hist)
 
 
+def fista_ref(lam, iters=40000):
+    """High-accuracy phi^* per lambda via accelerated proximal (FISTA, Lec.14)."""
+    W = np.zeros((C, d)); Z = W.copy(); t = 1.0
+    for _ in range(iters):
+        Wn = soft(Z - alpha * grad_nll(Z), alpha * lam * pen)
+        tn = 0.5 * (1 + np.sqrt(1 + 4 * t * t))
+        Z = Wn + ((t - 1) / tn) * (Wn - W)
+        W, t = Wn, tn
+    return phi(W, lam)
+
+
 # %% [markdown]
 # ## (b) lambda = 0 : maximal learning rate, convergence and sparsity
 
 # %%
 W0_pg, h0_pg = prox_grad(0.0, 4000, track=True)
 W0_sg, h0_sg = subgrad(0.0, 4000, track=True)
-f0_star = min(h0_pg.min(), h0_sg.min())
+f0_star = fista_ref(0.0)                          # true phi^* (Lecture 14)
 print(f"lambda=0: prox/GD step 1/L={alpha:.2e} (>2/L diverges); "
       f"final NLL pg={h0_pg[-1]:.4f}, sg={h0_sg[-1]:.4f}")
 print(f"lambda=0 sparsity: pg zeros={np.mean(np.abs(W0_pg)<1e-8):.1%} "
@@ -132,24 +143,16 @@ plt.close()
 # Reference $\varphi^\star$ per $\lambda$ from FISTA (accelerated proximal, Lecture 14).
 
 # %%
-def fista_ref(lam, iters=40000):
-    W = np.zeros((C, d)); Z = W.copy(); t = 1.0
-    for _ in range(iters):
-        Wn = soft(Z - alpha * grad_nll(Z), alpha * lam * pen)
-        tn = 0.5 * (1 + np.sqrt(1 + 4 * t * t))
-        Z = Wn + ((t - 1) / tn) * (Wn - W)
-        W, t = Wn, tn
-    return phi(W, lam)
-
-
 lams = [1e-3, 1e-2, 1e-1, 1.0]
 eps_list = [1e-1, 1e-2, 1e-3, 1e-4, 1e-5]
 MAXIT = 200000
 CHECK = 10
 
+phi_star_by_lam = {}
 rows = []
 for lam in lams:
     phi_star = fista_ref(lam)
+    phi_star_by_lam[lam] = phi_star
     W = np.zeros((C, d))
     phi0 = phi(W, lam)
     target = iter(eps_list)
@@ -181,8 +184,8 @@ tab.to_csv("../figures/prox_table.csv", index=False)
 plt.figure(figsize=(7, 4.2))
 for lam in lams:
     Wl, hl = prox_grad(lam, 4000, track=True)
-    fl = hl.min()
-    plt.semilogy(np.maximum(hl - fl, 1e-10), label=f"$\\lambda={lam:g}$")
+    fl = phi_star_by_lam[lam]                       # true phi^* (FISTA, Lec.14)
+    plt.semilogy(np.maximum(hl - fl, 1e-8), label=f"$\\lambda={lam:g}$")
 plt.xlabel("iteration $k$"); plt.ylabel(r"$\varphi(W_k)-\varphi^\star$")
 plt.title(r"Proximal gradient (ISTA), sparse softmax — $O(1/k)$")
 plt.grid(True, which="both", alpha=0.3); plt.legend(); plt.tight_layout()

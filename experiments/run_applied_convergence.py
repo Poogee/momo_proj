@@ -6,7 +6,7 @@ training convergence of an AR(p) model (and not hurt the causal
 walk-forward forecast)?
 
 Only causal filters are used (F0 identity, F1 trailing MA, F2 forward
-Kalman, F4 trailing/causal median, FA online) so there is no look-ahead.
+Kalman, F4 trailing/causal median) so there is no look-ahead.
 Train/test is a single causal split at 70%; AR features always use only
 the past, and the held-out target is the *raw* (unfiltered) standardised
 future value, identical across filters, so the comparison is fair and
@@ -47,7 +47,6 @@ from momo.filters import (
     IdentityFilter,
     KalmanLocalLevelFilter,
     MovingAverageFilter,
-    OnlineAdaptiveFilter,
 )
 from momo.metrics import time_to_drop
 from momo.noise import GaussianNoise
@@ -62,7 +61,6 @@ CAUSAL_FILTERS = {
     "F1": lambda: MovingAverageFilter(window=15),
     "F2": lambda: KalmanLocalLevelFilter(process_var=1e-3, obs_var=1.0),
     "F4": lambda: CausalMedianFilter(window=9),
-    "FA": lambda: OnlineAdaptiveFilter(window=9, k=3.0),
 }
 OPTIMIZERS = ["sgd", "adam"]
 

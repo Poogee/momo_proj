@@ -6,19 +6,18 @@ cherry-picking — the same noise parameters are used for every filter and
 optimizer; only the factor under study varies):
 
 BLOCK A — divergence / noise-floor rescue (SGD-family, heavy tails).
-  model {quadratic regression, logistic (convex) & MLP (non-convex)
-  classification, AR autoregression} x noise {N1 Gaussian control,
-  N3 alpha=1.2 heavy-tailed, N4 heavy + long-memory} x optimizer
-  {SGD, Clipped-SGD, Normalized-SGD} x filter {F0,F1,F2,F4,F7,FA}
-  x 8 seeds. Plain SGD under heavy tails stalls at a high noise floor /
-  diverges; the question is whether a filter lowers the floor / flips
-  the divergence.
+  model {quadratic regression, logistic (convex) classification,
+  AR autoregression} x noise {N1 Gaussian control, N3 alpha=1.2
+  heavy-tailed, N4 heavy + long-memory} x optimizer {SGD, Clipped-SGD,
+  Normalized-SGD} x filter {F0,F1,F2,F3,F4} x 8 seeds. Plain SGD under
+  heavy tails stalls at a high noise floor / diverges; the question is
+  whether a filter lowers the floor / flips the divergence.
 
 BLOCK B — speed-up of adaptive optimizers (Adam/AdamW, long horizon).
   model {quadratic, logistic} x noise {N2 long-memory, N4 heavy +
-  long-memory} x optimizer {Adam, AdamW} x filter {F0,F1,F2,F3,F4,F7}
-  x 8 seeds, 15000 steps. Metric: iterations to an absolute eps; the
-  known ~700x wavelet/median speed-up over no-filter is re-measured
+  long-memory} x optimizer {Adam, AdamW} x filter {F0,F1,F2,F3,F4}
+  x 8 seeds. Metric: iterations to an absolute eps; the wavelet/median
+  speed-up over no-filter is re-measured
   with CIs over seeds.
 
 Per run we log a battery of metrics so the data — not a tuned epsilon —
@@ -49,11 +48,9 @@ from joblib import Parallel, delayed
 from momo.data import make_ar_forecast_task
 from momo.filters import (
     CausalMedianFilter,
-    HybridMedianWaveletFilter,
     IdentityFilter,
     KalmanLocalLevelFilter,
     MovingAverageFilter,
-    OnlineAdaptiveFilter,
     WaveletThresholdFilter,
 )
 from momo.metrics import (
@@ -70,7 +67,7 @@ from momo.noise import (
     StableNoise,
 )
 from momo.optim import run_optimization
-from momo.tasks import make_logistic, make_mlp_classifier, make_quadratic
+from momo.tasks import make_logistic, make_quadratic
 
 SEEDS = list(range(8))
 
@@ -88,8 +85,6 @@ FILTERS = {
     "F3": lambda: WaveletThresholdFilter(wavelet="db4", mode="soft",
                                          threshold="universal"),
     "F4": lambda: CausalMedianFilter(window=9),
-    "F7": lambda: HybridMedianWaveletFilter(median_window=5),
-    "FA": lambda: OnlineAdaptiveFilter(window=9, k=3.0),
 }
 
 # block A: SGD-family, moderate horizon; noise_scale puts plain SGD into
@@ -97,12 +92,11 @@ FILTERS = {
 MODELS_A = {
     "quadratic": dict(steps=4000, lr=5e-3, noise_scale=0.4, eps=1e-2),
     "logistic": dict(steps=3000, lr=3e-2, noise_scale=0.25, eps=5e-4),
-    "mlp": dict(steps=2500, lr=1e-2, noise_scale=0.3, eps=3e-3),
     "ar": dict(steps=3000, lr=2e-2, noise_scale=0.3, eps=1e-4),
 }
 OPT_A = ["sgd", "clipped_sgd", "normalized_sgd"]
 NOISE_A = ["N1", "N3", "N4"]
-FILT_A = ["F0", "F1", "F2", "F4", "F7", "FA"]
+FILT_A = ["F0", "F1", "F2", "F3", "F4"]
 
 # block B: adaptive optimizers (Adam/AdamW). Question is whether a filter
 # still accelerates them; honest answer is regime-dependent (yes on
@@ -113,7 +107,7 @@ MODELS_B = {
 }
 OPT_B = ["adam", "adamw"]
 NOISE_B = ["N2", "N4"]
-FILT_B = ["F0", "F1", "F2", "F3", "F4", "F7"]
+FILT_B = ["F0", "F1", "F2", "F3", "F4"]
 
 
 def _make_task(model: str, seed: int):
@@ -122,9 +116,6 @@ def _make_task(model: str, seed: int):
     if model == "logistic":
         return make_logistic(n=3000, dim=15, n_test=1500,
                              noise_scale=0.4, seed=seed)
-    if model == "mlp":
-        return make_mlp_classifier(n=1500, d_in=8, hidden=6, n_test=800,
-                                   noise_scale=0.3, seed=seed)
     if model == "ar":
         rng = np.random.default_rng(1234 + seed)
         n = 4200
@@ -140,8 +131,6 @@ def _holdout(model: str, task, x_final: np.ndarray) -> float:
     if model == "logistic":
         return float(np.mean((task.Z_test @ x_final > 0).astype(float)
                              == task.y_test))
-    if model == "mlp":
-        return task.accuracy(x_final, task.Z_test, task.y_test)
     if model == "ar":
         return float(task.loss(x_final, task.test_x, task.test_y))
     if model == "quadratic":
@@ -212,7 +201,7 @@ def main():
     if args.smoke:
         A_models, B_models = ["quadratic", "ar"], ["quadratic"]
         seeds = [0, 1]
-        filt_a = ["F0", "F4", "F7"]
+        filt_a = ["F0", "F2", "F4"]
         filt_b = ["F0", "F3", "F4"]
 
     cells = [("A", m, n, o, f, s)

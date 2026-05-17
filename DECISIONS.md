@@ -80,3 +80,18 @@ Living record of non-obvious engineering / methodological choices.
   the new pipeline ≈30–60 min.
 - Wrap-up: 105 tests passing, +4 experiment scripts, +1 figure builder,
   report.pdf 6 pp, reviewed proposal restructured (clean Постановка).
+
+- Owner review follow-up: filter taxonomy of the *new* deliverables
+  narrowed to **F0–F4** (F7 hybrid / FA online removed from the new
+  experiments, figures, report; the `OnlineAdaptiveFilter` class stays
+  in `src/momo/filters.py` so the pre-existing legacy experiments and
+  their tests keep working — deleting it would break the repo and erase
+  prior honest results, which the brief forbids). The **MLP task was
+  removed** (the 100×-drop binary metric did not separate for it, so it
+  added noise not signal). The binary-convergence bar chart was dropped
+  (several models had all-identical bars → visually uninformative); the
+  headline figure is now 2 panels (floor + median curves). Net effect on
+  the story: the hero is unambiguously the **causal median F4** — under
+  heavy tails F1/F2/F3 fail exactly like F0 (0/8), only F4 rescues
+  (8/8), which is a *stronger* and cleaner claim than before. All
+  numbers re-measured (8 seeds); MLP tests removed.

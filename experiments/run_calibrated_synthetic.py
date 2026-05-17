@@ -8,7 +8,7 @@ in-sample diagnostics, no look-ahead.
 
 Step 2 — build StableNoise(alpha-hat) and MixedFARIMAStableNoise(d-hat,
 alpha-hat) at the *median* diagnosed values and re-run the SGD floor
-rescue (quadratic / logistic / AR x F0 vs F4 vs F7, 8 seeds). If the
+rescue (quadratic / logistic / AR x F0 vs F4, 8 seeds). If the
 1-2 order-of-magnitude floor reduction persists at realistically
 calibrated tails, the effect is not an artifact of a convenient alpha.
 
@@ -34,7 +34,7 @@ from momo.data import (
     fetch_returns,
     make_ar_forecast_task,
 )
-from momo.filters import CausalMedianFilter, HybridMedianWaveletFilter, IdentityFilter
+from momo.filters import CausalMedianFilter, IdentityFilter
 from momo.metrics import (
     convergence_auc,
     divergence_slope,
@@ -105,8 +105,7 @@ def run_cell(model, noise_key, alpha, d, filt_key, seed):
     noise = (StableNoise(alpha=alpha, sigma=0.3) if noise_key == "N3cal"
              else MixedFARIMAStableNoise(d=d, alpha=alpha, sigma=0.3))
     filt = {"F0": IdentityFilter(),
-            "F4": CausalMedianFilter(window=9),
-            "F7": HybridMedianWaveletFilter(median_window=5)}[filt_key]
+            "F4": CausalMedianFilter(window=9)}[filt_key]
     res = run_optimization(task=task, optimizer="sgd", noise=noise,
                            filt=filt, steps=c["steps"], lr=c["lr"],
                            seed=seed, noise_scale=c["sc"],
@@ -145,21 +144,20 @@ def main():
 
     cells = [(m, nk, a_med, d_med, f, s)
              for m in CFG for nk in ("N3cal", "N4cal")
-             for f in ("F0", "F4", "F7") for s in SEEDS]
+             for f in ("F0", "F4") for s in SEEDS]
     out = Parallel(n_jobs=args.n_jobs, verbose=3, backend="loky")(
         delayed(run_cell)(*c) for c in cells)
     df = pd.DataFrame(out)
     df.to_csv(args.csv, index=False)
 
-    print("\n=== calibrated heavy-tailed SGD floor: F0 vs F4/F7 "
+    print("\n=== calibrated heavy-tailed SGD floor: F0 vs F4 "
           f"(alpha={a_med:.2f}, d={d_med:.2f}) ===")
     for (m, nk), s in df.groupby(["model", "noise"]):
         piv = s.groupby("filter")["floor_p50"].median()
         f0 = float(piv.get("F0", np.nan))
-        for fk in ("F4", "F7"):
-            if fk in piv and piv[fk] > 0:
-                print(f"  {m:9s} {nk}: F0 {f0:.2e} -> {fk} "
-                      f"{piv[fk]:.2e}  ({f0 / piv[fk]:.0f}x lower floor)")
+        if "F4" in piv and piv["F4"] > 0:
+            print(f"  {m:9s} {nk}: F0 {f0:.2e} -> F4 "
+                  f"{piv['F4']:.2e}  ({f0 / piv['F4']:.0f}x lower floor)")
     print(f"\nwrote {args.csv}, {args.diag_csv}")
 
 

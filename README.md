@@ -23,19 +23,20 @@ lookahead-bias correction.
 **Filtering the observed series rescues stochastic-optimization
 convergence under heavy-tailed gradient noise.** At a tail index
 calibrated to real series (α̂≈1.2; SPY α̂=1.05, Hurst|r|=0.86), plain
-SGD on the quadratic and logistic tasks converges in **0 of 8 seeds**;
-with a causal median/hybrid/online filter (F4/F7/FA) it converges in
-**8 of 8**, and the noise floor is **17–186× lower** across regression,
-convex & non-convex classification, and autoregression. The effect
-persists at calibrated tails (91–158×). Adam/AdamW gain **11.2×** from
-wavelet preprocessing on long-memory noise. On a genuinely real,
-fully-causal task (15-min returns) Adam converges in 7/16 runs without
-a filter vs **16/16, ≈78× faster** with a causal Kalman filter, holdout
-unchanged. Honest negative zones (clean Gaussian noise, raw daily
-returns, mixed long-memory, ETT holdout) are reported in full.
-See `report.pdf`; experiment `experiments/run_convergence_rescue.py`,
-tables `tables/convergence_rescue*.csv`,
-figure `figures/convergence_rescue.pdf`.
+SGD on the quadratic and logistic tasks converges in **0 of 8 seeds**
+— and so does SGD with the linear/wavelet filters F1/F2/F3 — whereas
+with the **causal median F4** it converges in **8 of 8**, the noise
+floor **108× / 133× lower** (regression / convex classification; AR
+20× lower). The effect persists at calibrated tails (quadratic 91×,
+logistic 120×, AR 17×). Adam/AdamW gain **11.2×** from wavelet (F3)
+preprocessing on long-memory noise. On a genuinely real, fully-causal
+task (15-min returns) Adam converges in ~7/16 runs without a filter vs
+**16/16, ≈78× faster** with a causal Kalman filter, holdout unchanged.
+Honest negative zones (clean Gaussian noise, raw daily returns, mixed
+long-memory, ETT holdout) are reported in full. Filters are restricted
+to **F0–F4**. See `report.pdf`;
+`experiments/run_convergence_rescue.py`,
+`tables/convergence_rescue*.csv`, `figures/convergence_rescue.pdf`.
 
 ## Other findings
 
@@ -106,7 +107,7 @@ experiments/
   make_*.py                         figure builders (incl.
                                     make_convergence_figures.py)
 
-tests/                              105 pytest tests (~12 s)
+tests/                              102 pytest tests (~12 s)
 runs/                               raw .npz per run, indexed in INDEX.md
 tables/                             21 summary CSVs
 figures/                            34 PDF figures

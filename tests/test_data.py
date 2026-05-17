@@ -9,9 +9,12 @@ import pandas as pd
 import pytest
 
 from momo.data import (
+    DEFAULT_FRED_SERIES,
     DEFAULT_TICKERS,
     ForecastTask,
+    fetch_fred,
     fetch_intraday,
+    fetch_nonfinancial,
     fetch_returns,
     make_ar_forecast_task,
     make_walk_forward_splits,
@@ -55,7 +58,7 @@ def test_fetch_returns_cached(tmp_path, monkeypatch):
     assert len(cache_files) >= 1
 
 
-@pytest.mark.parametrize("interval", ["1m", "5m"])
+@pytest.mark.parametrize("interval", ["1m", "5m", "15m", "60m"])
 def test_fetch_intraday_shape_and_index(interval):
     # works offline via the synthetic intraday fallback
     df = fetch_intraday(["SPY", "AAPL"], interval=interval, cache=False)
@@ -142,6 +145,45 @@ def test_forecast_task_sample_batch_shapes():
     bx, by = task.sample_batch(rng, 32)
     assert bx.shape == (32, 3)
     assert by.shape == (32,)
+
+
+def test_fetch_intraday_rejects_bad_interval():
+    with pytest.raises(ValueError):
+        fetch_intraday(["SPY"], interval="3m", cache=False)
+
+
+def test_fetch_fred_structure_offline_safe(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    df = fetch_fred(["INDPRO", "UNRATE"], start="2010-01-01",
+                    end="2020-01-01", cache=False)
+    assert isinstance(df, pd.DataFrame)
+    assert df.shape[0] > 50 and df.shape[1] >= 1
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert df.index.is_monotonic_increasing
+    assert not df.dropna(how="all").empty
+
+
+def test_fetch_fred_cached(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    a = fetch_fred(["INDPRO"], start="2015-01-01", end="2020-01-01")
+    b = fetch_fred(["INDPRO"], start="2015-01-01", end="2020-01-01")
+    pd.testing.assert_frame_equal(a, b)
+    assert list(Path("data/cache").glob("fred_*.parquet"))
+
+
+def test_default_fred_series_nonempty():
+    assert DEFAULT_FRED_SERIES and all(isinstance(s, str)
+                                       for s in DEFAULT_FRED_SERIES)
+
+
+def test_fetch_nonfinancial_structure_offline_safe(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    df = fetch_nonfinancial(cache=False)
+    assert isinstance(df, pd.DataFrame)
+    assert df.shape[0] > 1000
+    assert "OT" in df.columns
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert np.isfinite(df["OT"].to_numpy()).all()
 
 
 def test_default_tickers_structure():

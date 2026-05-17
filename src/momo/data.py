@@ -120,8 +120,9 @@ def fetch_returns(
     return rets
 
 
-_INTRADAY_BARS_PER_DAY = {"1m": 390, "5m": 78}
-_INTRADAY_DEFAULT_PERIOD = {"1m": "7d", "5m": "60d"}
+_INTRADAY_BARS_PER_DAY = {"1m": 390, "5m": 78, "15m": 26, "60m": 7}
+_INTRADAY_DEFAULT_PERIOD = {"1m": "7d", "5m": "60d", "15m": "60d", "60m": "360d"}
+_INTRADAY_STEP_MIN = {"1m": 1, "5m": 5, "15m": 15, "60m": 60}
 
 
 def _synthetic_intraday(tickers: list[str], interval: str,
@@ -133,13 +134,14 @@ def _synthetic_intraday(tickers: list[str], interval: str,
     rng = np.random.default_rng(123)
     u = np.linspace(0, 1, m)
     season = 0.6 + 1.4 * (u - 0.5) ** 2          # U-shaped vol over the day
-    sigma = 5e-4 if interval == "1m" else 1.2e-3  # per-bar efficient vol
+    sigma = {"1m": 5e-4, "5m": 1.2e-3, "15m": 2.0e-3,
+             "60m": 4.0e-3}.get(interval, 1.2e-3)  # per-bar efficient vol
     gamma = 1.5                                   # noise-to-signal
     idx, cols = [], {t: [] for t in tickers}
     start = pd.Timestamp("2026-01-05 09:30", tz="UTC")
+    step = _INTRADAY_STEP_MIN.get(interval, 5)
     for d in range(n_sessions):
         day0 = start + pd.Timedelta(days=d)
-        step = 1 if interval == "1m" else 5
         idx += [day0 + pd.Timedelta(minutes=step * k) for k in range(m)]
         for i, t in enumerate(tickers):
             lvl = 100.0 + 10.0 * i
@@ -163,8 +165,9 @@ def fetch_intraday(
     days, 5m ~ 60 days); we cap accordingly. Falls back to a reproducible
     synthetic intraday generator when the network/data is unavailable.
     """
-    if interval not in ("1m", "5m"):
-        raise ValueError("interval must be '1m' or '5m'")
+    if interval not in _INTRADAY_BARS_PER_DAY:
+        raise ValueError("interval must be one of "
+                         f"{sorted(_INTRADAY_BARS_PER_DAY)}")
     tickers = list(tickers)
     period = period or _INTRADAY_DEFAULT_PERIOD[interval]
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -198,6 +201,134 @@ def fetch_intraday(
     df = df.sort_index().ffill().dropna(how="all")
     df = df.loc[:, [c for c in df.columns if df[c].notna().sum() > 50]]
     df.index = pd.DatetimeIndex(pd.to_datetime(df.index), name="Datetime")
+    if cache:
+        df.to_parquet(path)
+    return df
+
+
+def _host_reachable(host: str, port: int = 443, timeout: float = 3.0) -> bool:
+    try:
+        socket.create_connection((host, port), timeout=timeout).close()
+        return True
+    except OSError:
+        return False
+
+
+DEFAULT_FRED_SERIES = ["INDPRO", "UNRATE", "CPIAUCSL", "DGS10",
+                       "DEXUSEU", "VIXCLS"]
+
+
+def _synthetic_fred(series_ids: list[str], start: str, end: str) -> pd.DataFrame:
+    idx = pd.bdate_range(start=start, end=end, freq="W")
+    rng = np.random.default_rng(2026)
+    out = {}
+    for i, sid in enumerate(series_ids):
+        drift = 0.0 + 0.02 * (i % 3)
+        x = 50.0 + 10.0 * i + np.cumsum(rng.normal(drift, 1.0 + 0.3 * i,
+                                                   size=len(idx)))
+        out[sid] = x
+    return pd.DataFrame(out, index=pd.DatetimeIndex(idx, name="Date"))
+
+
+def fetch_fred(series_ids: list[str] | None = None,
+               start: str = "2000-01-01", end: str = "2025-12-31",
+               cache: bool = True) -> pd.DataFrame:
+    """Macro series from FRED via the public ``fredgraph.csv`` endpoint
+    (no API key). Returns one column per id on the union weekly grid
+    (forward-filled). Deterministic synthetic fallback when offline so
+    downstream experiments still run reproducibly. Cached to parquet."""
+    series_ids = list(series_ids or DEFAULT_FRED_SERIES)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    path = DATA_DIR / f"fred_{_cache_key(series_ids, start, end)}.parquet"
+    if cache and path.exists():
+        df = pd.read_parquet(path)
+        df.index = pd.DatetimeIndex(pd.to_datetime(df.index), name="Date")
+        return df
+    df: pd.DataFrame | None = None
+    if _host_reachable("fred.stlouisfed.org"):
+        import io
+        import urllib.request
+
+        cols: dict[str, pd.Series] = {}
+        for sid in series_ids:
+            # one request per id: single-series fredgraph.csv is an
+            # unambiguous two-column ``date,<ID>`` levels file (the
+            # multi-id endpoint can realign/transform columns).
+            url = (f"https://fred.stlouisfed.org/graph/fredgraph.csv?"
+                   f"id={sid}&cosd={start}&coed={end}")
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "momo-research/1.0"})
+            for _attempt in range(2):
+                try:
+                    with urllib.request.urlopen(req, timeout=20) as resp:
+                        one = pd.read_csv(io.BytesIO(resp.read()))
+                    dcol = one.columns[0]
+                    one[dcol] = pd.to_datetime(one[dcol], errors="coerce")
+                    one = one.set_index(dcol)
+                    s = pd.to_numeric(
+                        one.iloc[:, 0].replace(".", np.nan), errors="coerce"
+                    ).dropna()
+                    if not s.empty:
+                        cols[sid] = s
+                    break
+                except Exception:
+                    continue
+        if cols:
+            df = pd.concat(cols, axis=1)
+    if df is None or df.empty:
+        df = _synthetic_fred(series_ids, start, end)
+    df = df.sort_index().ffill().dropna(how="all")
+    df.index = pd.DatetimeIndex(
+        pd.to_datetime(df.index).to_numpy("datetime64[ns]"), name="Date")
+    if cache:
+        df.to_parquet(path)
+    return df
+
+
+_ETT_URL = ("https://raw.githubusercontent.com/zhouhaoyi/ETDataset/"
+            "main/ETT-small/ETTh1.csv")
+
+
+def _synthetic_ett(n: int = 9000) -> pd.DataFrame:
+    rng = np.random.default_rng(7)
+    idx = pd.date_range("2016-07-01", periods=n, freq="h", name="date")
+    t = np.arange(n)
+    daily = 6.0 * np.sin(2 * np.pi * t / 24.0)
+    weekly = 3.0 * np.sin(2 * np.pi * t / (24.0 * 7))
+    load = 20.0 + daily + weekly + np.cumsum(rng.normal(0, 0.15, n))
+    ot = 10.0 + 0.4 * load + 4.0 * np.sin(2 * np.pi * t / (24.0 * 30)) \
+        + rng.normal(0, 1.0, n)
+    return pd.DataFrame({"HUFL": load + rng.normal(0, 1.0, n),
+                         "OT": ot}, index=idx)
+
+
+def fetch_nonfinancial(cache: bool = True) -> pd.DataFrame:
+    """Non-financial open sensor series: the ETT (Electricity Transformer
+    Temperature) hourly dataset — transformer oil temperature ``OT`` and
+    high-useful-load ``HUFL``. Stable raw-GitHub source, deterministic
+    synthetic fallback, cached to parquet."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    path = DATA_DIR / "nonfinancial_etth1.parquet"
+    if cache and path.exists():
+        df = pd.read_parquet(path)
+        df.index = pd.DatetimeIndex(pd.to_datetime(df.index), name="date")
+        return df
+    df: pd.DataFrame | None = None
+    if _host_reachable("raw.githubusercontent.com"):
+        try:
+            raw = pd.read_csv(_ETT_URL)
+            raw["date"] = pd.to_datetime(raw["date"], errors="coerce")
+            raw = raw.set_index("date")
+            keep = [c for c in ("HUFL", "OT") if c in raw.columns]
+            if keep and len(raw) > 1000:
+                df = raw[keep].apply(pd.to_numeric, errors="coerce")
+        except Exception:
+            df = None
+    if df is None or df.empty:
+        df = _synthetic_ett()
+    df = df.sort_index().ffill().dropna(how="all")
+    df.index = pd.DatetimeIndex(
+        pd.to_datetime(df.index).to_numpy("datetime64[ns]"), name="date")
     if cache:
         df.to_parquet(path)
     return df

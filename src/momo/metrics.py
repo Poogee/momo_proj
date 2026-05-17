@@ -146,3 +146,81 @@ def time_to_eps(grad_norms_sq: np.ndarray, eps: float) -> int | None:
     if hits.size == 0:
         return None
     return int(hits[0])
+
+
+# --- convergence diagnostics (used by the convergence-rescue study) -------
+
+def time_to_drop(grad_norms_sq: np.ndarray, factor: float = 1e3,
+                 baseline_k: int = 5) -> int | None:
+    """First iteration at which ``||g||^2`` falls below
+    ``g0 / factor`` where ``g0`` is the mean over the first
+    ``baseline_k`` steps. ``None`` if never reached."""
+    arr = np.asarray(grad_norms_sq, dtype=float)
+    if arr.size == 0:
+        return None
+    g0 = float(np.mean(arr[:max(1, baseline_k)]))
+    if not np.isfinite(g0) or g0 <= 0:
+        return None
+    hits = np.where(arr <= g0 / float(factor))[0]
+    return int(hits[0]) if hits.size else None
+
+
+def converged(grad_norms_sq: np.ndarray, eps: float,
+              patience: int = 10) -> bool:
+    """A run counts as converged if the *median of the last ``patience``
+    iterates* is at or below ``eps`` (robust to a single lucky/unlucky
+    final point; no look-ahead — uses only the realised trajectory)."""
+    arr = np.asarray(grad_norms_sq, dtype=float)
+    if arr.size == 0:
+        return False
+    tail = arr[-min(patience, arr.size):]
+    return bool(np.isfinite(np.median(tail)) and np.median(tail) <= eps)
+
+
+def convergence_fraction(histories: list[np.ndarray], eps: float,
+                         patience: int = 10) -> float:
+    """Share of runs (over seeds) that converged — the binary
+    convergence metric."""
+    if not histories:
+        return float("nan")
+    return float(np.mean([converged(h, eps, patience) for h in histories]))
+
+
+def divergence_slope(grad_norms_sq: np.ndarray, tail_frac: float = 0.3) -> float:
+    """Least-squares slope of ``log ||g||^2`` vs ``log k`` over the last
+    ``tail_frac`` of the trajectory. ``> 0`` ⇒ diverging/growing,
+    ``≈ 0`` ⇒ stalled at a floor, ``< 0`` ⇒ still converging."""
+    arr = np.asarray(grad_norms_sq, dtype=float)
+    n = arr.size
+    if n < 8:
+        return float("nan")
+    start = int((1.0 - tail_frac) * n)
+    k = np.arange(start, n)
+    y = np.log(np.maximum(arr[start:], 1e-12))
+    logk = np.log(k + 1.0)
+    if np.allclose(logk, logk[0]):
+        return float("nan")
+    slope, _, _, _, _ = stats.linregress(logk, y)
+    return float(slope)
+
+
+def convergence_auc(grad_norms_sq: np.ndarray, floor: float = 1e-12) -> float:
+    """Mean of ``log10 ||g||^2`` over the trajectory — a scalar
+    "area under the convergence curve" (lower is better, rewards both
+    speed and depth)."""
+    arr = np.asarray(grad_norms_sq, dtype=float)
+    if arr.size == 0:
+        return float("nan")
+    return float(np.mean(np.log10(np.maximum(arr, floor))))
+
+
+def noise_floor_quantiles(grad_norms_sq: np.ndarray, tail_frac: float = 0.2,
+                          quantiles: tuple[float, ...] = (0.1, 0.5, 0.9)
+                          ) -> dict[float, float]:
+    """Quantiles of ``||g||^2`` over the final ``tail_frac`` of the
+    trajectory (the noise floor and its spread)."""
+    arr = np.asarray(grad_norms_sq, dtype=float)
+    if arr.size == 0:
+        return {q: float("nan") for q in quantiles}
+    tail = arr[-max(1, int(tail_frac * arr.size)):]
+    return {q: float(np.quantile(tail, q)) for q in quantiles}

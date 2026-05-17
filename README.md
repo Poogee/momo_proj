@@ -18,7 +18,26 @@ multi-step), σ scans, batch-size and convergence-rate ablations,
 window-sensitivity studies, theoretical sketch, and a critical
 lookahead-bias correction.
 
-## Headline findings
+## Headline finding (positive, reproducible)
+
+**Filtering the observed series rescues stochastic-optimization
+convergence under heavy-tailed gradient noise.** At a tail index
+calibrated to real series (α̂≈1.2; SPY α̂=1.05, Hurst|r|=0.86), plain
+SGD on the quadratic and logistic tasks converges in **0 of 8 seeds**;
+with a causal median/hybrid/online filter (F4/F7/FA) it converges in
+**8 of 8**, and the noise floor is **17–186× lower** across regression,
+convex & non-convex classification, and autoregression. The effect
+persists at calibrated tails (91–158×). Adam/AdamW gain **11.2×** from
+wavelet preprocessing on long-memory noise. On a genuinely real,
+fully-causal task (15-min returns) Adam converges in 7/16 runs without
+a filter vs **16/16, ≈78× faster** with a causal Kalman filter, holdout
+unchanged. Honest negative zones (clean Gaussian noise, raw daily
+returns, mixed long-memory, ETT holdout) are reported in full.
+See `report.pdf`; experiment `experiments/run_convergence_rescue.py`,
+tables `tables/convergence_rescue*.csv`,
+figure `figures/convergence_rescue.pdf`.
+
+## Other findings
 
 | Question | Answer |
 |---|---|
@@ -45,11 +64,12 @@ src/momo/
                  F8 AdaptiveMeta, FE EnsembleAverage
   learnable.py   F5 LearnableCNNFilter (small), F9 LearnableCNNFilterV2 (large)
   metrics.py     SNR, Hurst R/S + DFA, Hill α, McCulloch α, time-to-eps
-  tasks.py       QuadraticTask, LogisticTask
+  tasks.py       QuadraticTask, LogisticTask, MLPClassifierTask
   optim.py       SGD, Clipped-SGD, Normalized-SGD, Adam, AdamW;
                  buffer/data preprocess modes; AlphaAwareClipper hook
   clipping.py    AlphaAwareClipper (online α̂ → adaptive threshold)
-  data.py        yfinance pipeline, walk-forward splits, AR(p) ForecastTask
+  data.py        yfinance (daily + 1m/5m/15m/60m), FRED macro,
+                 non-financial ETT, walk-forward splits, AR(p) ForecastTask
   contracts.py   shared dataclasses
 
 experiments/
@@ -76,19 +96,26 @@ experiments/
   run_multistep_horizon.py          h ∈ {1,5,10,20} forecast horizon
   run_cross_asset_transfer.py       train on one ticker, test on another
   verify_convergence_rate.py        empirical slopes log‖g‖² vs log k
+  run_convergence_rescue.py         HEADLINE: filter rescues convergence
+                                    (multi-metric, 4 models, 8 seeds)
+  run_calibrated_synthetic.py       synthetic calibrated to real α̂/Ĥ
+  run_applied_convergence.py        causal AR convergence across domains
+                                    (financial / FRED macro / ETT sensor)
   train_learnable_filter.py         F5 / F9 training
   compare_learnable_v1_v2.py        F5 vs F9 head-to-head
-  make_*.py                         figure builders (8 scripts)
+  make_*.py                         figure builders (incl.
+                                    make_convergence_figures.py)
 
-tests/                              82 pytest tests (~10 s)
+tests/                              105 pytest tests (~12 s)
 runs/                               raw .npz per run, indexed in INDEX.md
 tables/                             21 summary CSVs
 figures/                            34 PDF figures
 data/cache/                         yfinance parquet cache
 models/                             trained CNN weights (F5 0.34 MB, F9 3.3 MB)
 
-report.typ / report.pdf             Russian, 41 pages, IEEE/proposal style
-refs.bib                            bibliography (24 entries, 1951–2026)
+report.typ / report.pdf             Russian, positive-result headline,
+                                    clean math Постановка + subsections
+refs.bib                            bibliography (verified, 1951–2026)
 ITERATIONS.md                       one-liner per iteration
 DECISIONS.md                        engineering / methodology log
 NOTICE                              third-party licenses

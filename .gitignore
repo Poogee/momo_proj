@@ -15,3 +15,4 @@ data/cache/
 *.parquet.tmp
 *.lock
 .DS_Store
+.build/

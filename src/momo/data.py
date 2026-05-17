@@ -120,6 +120,82 @@ def fetch_returns(
     return rets
 
 
+_INTRADAY_BARS_PER_DAY = {"1m": 390, "5m": 78}
+_INTRADAY_DEFAULT_PERIOD = {"1m": "7d", "5m": "60d"}
+
+
+def _synthetic_intraday(tickers: list[str], interval: str,
+                        n_sessions: int) -> pd.DataFrame:
+    """Reproducible intraday Close: efficient random walk with a U-shaped
+    intraday volatility and additive bid-ask-bounce microstructure noise.
+    """
+    m = _INTRADAY_BARS_PER_DAY.get(interval, 78)
+    rng = np.random.default_rng(123)
+    u = np.linspace(0, 1, m)
+    season = 0.6 + 1.4 * (u - 0.5) ** 2          # U-shaped vol over the day
+    sigma = 5e-4 if interval == "1m" else 1.2e-3  # per-bar efficient vol
+    gamma = 1.5                                   # noise-to-signal
+    idx, cols = [], {t: [] for t in tickers}
+    start = pd.Timestamp("2026-01-05 09:30", tz="UTC")
+    for d in range(n_sessions):
+        day0 = start + pd.Timedelta(days=d)
+        step = 1 if interval == "1m" else 5
+        idx += [day0 + pd.Timedelta(minutes=step * k) for k in range(m)]
+        for i, t in enumerate(tickers):
+            lvl = 100.0 + 10.0 * i
+            eff = lvl * np.exp(np.cumsum(sigma * season
+                                         * rng.standard_normal(m)))
+            noise = gamma * sigma * eff * rng.standard_normal(m)
+            cols[t].extend((eff + noise).tolist())
+    df = pd.DataFrame(cols, index=pd.DatetimeIndex(idx, name="Datetime"))
+    return df
+
+
+def fetch_intraday(
+    tickers: list[str],
+    interval: str = "5m",
+    period: str | None = None,
+    cache: bool = True,
+) -> pd.DataFrame:
+    """Intraday Close prices (columns=tickers, tz-aware Datetime index).
+
+    interval in {"1m","5m"}. yfinance limits intraday history (1m ~ a few
+    days, 5m ~ 60 days); we cap accordingly. Falls back to a reproducible
+    synthetic intraday generator when the network/data is unavailable.
+    """
+    if interval not in ("1m", "5m"):
+        raise ValueError("interval must be '1m' or '5m'")
+    tickers = list(tickers)
+    period = period or _INTRADAY_DEFAULT_PERIOD[interval]
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    path = DATA_DIR / f"intraday_{interval}_{_cache_key(tickers, period, '')}.parquet"
+    if cache and path.exists():
+        df = pd.read_parquet(path)
+        df.index = pd.DatetimeIndex(pd.to_datetime(df.index), name="Datetime")
+        return df
+    df = None
+    if _has_network():
+        try:
+            import yfinance as yf
+
+            raw = yf.download(tickers, period=period, interval=interval,
+                              auto_adjust=True, progress=False,
+                              group_by="column", threads=True)
+            if raw is not None and not raw.empty:
+                df = _extract_close(raw, tickers)
+        except Exception:
+            df = None
+    if df is None or df.empty:
+        n_sessions = 30 if interval == "1m" else 60
+        df = _synthetic_intraday(tickers, interval, n_sessions)
+    df = df.sort_index().ffill().dropna(how="all")
+    df = df.loc[:, [c for c in df.columns if df[c].notna().sum() > 50]]
+    df.index = pd.DatetimeIndex(pd.to_datetime(df.index), name="Datetime")
+    if cache:
+        df.to_parquet(path)
+    return df
+
+
 def make_walk_forward_splits(
     returns: pd.Series,
     n_splits: int = 5,

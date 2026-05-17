@@ -11,6 +11,7 @@ import pytest
 from momo.data import (
     DEFAULT_TICKERS,
     ForecastTask,
+    fetch_intraday,
     fetch_returns,
     make_ar_forecast_task,
     make_walk_forward_splits,
@@ -52,6 +53,27 @@ def test_fetch_returns_cached(tmp_path, monkeypatch):
     pd.testing.assert_frame_equal(a, b)
     cache_files = list(Path("data/cache").glob("returns_*.parquet"))
     assert len(cache_files) >= 1
+
+
+@pytest.mark.parametrize("interval", ["1m", "5m"])
+def test_fetch_intraday_shape_and_index(interval):
+    # works offline via the synthetic intraday fallback
+    df = fetch_intraday(["SPY", "AAPL"], interval=interval, cache=False)
+    assert df.shape[0] > 100
+    assert list(df.columns)
+    assert isinstance(df.index, pd.DatetimeIndex)
+    assert df.notna().all().all()
+    # spans several distinct trading sessions
+    assert len(np.unique(df.index.date)) >= 5
+
+
+def test_fetch_intraday_cached(monkeypatch):
+    tk = ["SPY"]
+    a = fetch_intraday(tk, interval="5m")
+    b = fetch_intraday(tk, interval="5m")
+    assert a.shape == b.shape
+    files = list(Path("data/cache").glob("intraday_5m_*.parquet"))
+    assert len(files) >= 1
 
 
 def test_walk_forward_splits_sizes_and_disjoint_test_windows():

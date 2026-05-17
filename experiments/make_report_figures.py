@@ -163,6 +163,32 @@ def fig_speed():
     plt.close(fig)
 
 
+def fig_intraday():
+    d = pd.read_csv(ROOT / "tables/intraday_summary.csv")
+    cls = {"BTC-USD": "крипто", "ETH-USD": "крипто", "EURUSD=X": "FX",
+           "GBPUSD=X": "FX", "JPY=X": "FX"}
+    d["cls"] = d.ticker.map(lambda t: cls.get(t, "акции"))
+    order = ["F0 raw", "F1 MA", "F2 Kalman", "F3 Wavelet",
+             "F4 Median", "FA online"]
+    piv = d.pivot_table(index="filter", columns="cls",
+                        values="rel_err", aggfunc="median")
+    piv = piv.reindex([f for f in order if f in piv.index])
+    fig, ax = plt.subplots(figsize=(6.6, 3.4))
+    cols = list(piv.columns)
+    x = np.arange(len(piv.index))
+    w = 0.8 / len(cols)
+    for k, c in enumerate(cols):
+        ax.bar(x + (k - (len(cols) - 1) / 2) * w, piv[c].values, w, label=c)
+    ax.set_xticks(x, piv.index, rotation=12, ha="right")
+    ax.set_ylabel(r"медиана $|RV_{1m}-RV_{5m}|/RV_{5m}$")
+    ax.set_title("Реальные 1-мин данные: отклонение от 5-мин бенчмарка")
+    ax.legend(fontsize=8, title="класс актива")
+    ax.grid(alpha=0.3, axis="y")
+    fig.tight_layout()
+    fig.savefig(FIG / "intraday.pdf", bbox_inches="tight")
+    plt.close(fig)
+
+
 def fig_semisynthetic():
     d = pd.read_csv(ROOT / "tables/semisynthetic_summary.csv")
     d = d[d.optimizer == "adam"]
@@ -217,5 +243,6 @@ if __name__ == "__main__":
     fig_real_mse()
     fig_semisynthetic()
     fig_microstructure()
+    fig_intraday()
     print("wrote: conv_curves snr_heatmap speed synth_bars real_mse "
-          "semisynthetic microstructure (.pdf)")
+          "semisynthetic microstructure intraday (.pdf)")

@@ -185,7 +185,14 @@ def fetch_intraday(
                 df = _extract_close(raw, tickers)
         except Exception:
             df = None
-    if df is None or df.empty:
+
+    def _too_small(d: pd.DataFrame | None) -> bool:
+        if d is None or d.empty or d.shape[0] < 200:
+            return True
+        idx = pd.to_datetime(d.index)
+        return len(np.unique(idx.date)) < 5
+
+    if _too_small(df):
         n_sessions = 30 if interval == "1m" else 60
         df = _synthetic_intraday(tickers, interval, n_sessions)
     df = df.sort_index().ffill().dropna(how="all")

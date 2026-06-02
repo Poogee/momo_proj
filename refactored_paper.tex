@@ -11,6 +11,7 @@
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{algorithmic}
 \usepackage{graphicx}
+\usepackage{float}
 \usepackage{textcomp}
 \usepackage{xcolor}
 \usepackage{booktabs}
@@ -433,21 +434,22 @@ $d=20$, логистическая классификация $d=15$, автор
 логистической задачах (табл.~\ref{tab:rescue}, рис.~\ref{fig:rescue}).
 \textbf{Это прямо подтверждает H1.}
 
-\begin{table}[tbp]
+\begin{table}[H]
 \centering\footnotesize
 \setlength{\tabcolsep}{4pt}
 \caption{Тяжёлохвостовый шум N3, SGD: бинарная сходимость, число итераций
-до $\varepsilon$-точности $T_\varepsilon$ и шумовой пол для нефильтрованного
-ряда (F0) и причинной медианы (F4). Запись «$>N$» означает, что без фильтра
-$\varepsilon$-точность не достигнута за весь горизонт ($N$ итераций).}
+$T_{100}$ до 100-кратного снижения $\|\nabla f\|^2$ (то же определение, что
+у бинарной сходимости) и шумовой пол для нефильтрованного ряда (F0) и
+причинной медианы (F4). Запись «$>N$» означает, что 100-кратное снижение
+не достигнуто за весь горизонт ($N$ итераций).}
 \label{tab:rescue}
 \begin{tabular}{lcccccc}
 \toprule
-Задача & бин.\,F0 & бин.\,F4 & $T_\varepsilon$\,F0 & $T_\varepsilon$\,F4 & пол F0 & пол F4 \\
+Задача & бин.\,F0 & бин.\,F4 & $T_{100}$\,F0 & $T_{100}$\,F4 & пол F0 & пол F4 \\
 \midrule
-квадратичная  & 0/8 & 8/8 & $>$4000 & 271  & 0.540  & 0.0050  \\
-логистическая & 0/8 & 8/8 & $>$3000 & 1966 & 0.0658 & 0.00050 \\
-авторегрессия & 8/8 & 8/8 & $>$3000 & 1873 & 0.0421 & 0.0021  \\
+квадратичная  & 0/8 & 8/8 & $>$4000 & 416  & 0.540  & 0.0050  \\
+логистическая & 0/8 & 8/8 & $>$3000 & 1118 & 0.0658 & 0.00050 \\
+авторегрессия & 8/8 & 8/8 & 109     & 75   & 0.0421 & 0.0021  \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -459,7 +461,7 @@ $\varepsilon$-точность не достигнута за весь гори�
 фильтра~--- слишком большой начальный $\|\nabla f_0\|^2$. Но шумовой
 пол с F4 ниже в 20~раз.
 
-\begin{figure}[tbp]
+\begin{figure}[H]
   \centering
   \includegraphics[width=\linewidth]{figures/convergence_rescue.pdf}
   \caption{Шум N3, SGD, 8~сидов. Слева~--- шумовые полы F0--F4
@@ -477,7 +479,7 @@ $\varepsilon$-точность не достигнута за весь гори�
 точности на распределении, для которого оптимально среднее
 (рис.~\ref{fig:gauss}). \textbf{H4 подтверждается.}
 
-\begin{figure}[tbp]
+\begin{figure}[H]
   \centering
   \includegraphics[width=\linewidth]{figures/gaussian_control.pdf}
   \caption{Гауссов шум N1, SGD, 8~сидов. Слева~--- шумовые полы F0--F4
@@ -494,22 +496,27 @@ $\varepsilon$-точность не достигнута за весь гори�
 падает со 562~итераций (F0) до~50 (F3) на квадратичной задаче
 (табл.~\ref{tab:h2}, рис.~\ref{fig:lm}). Фильтр Калмана F2 даёт
 3.1$\times$, линейное сглаживание F1 и медиана F4~--- нет. Та же
-тенденция видна по AUC (площадь под кривой $\log\|\nabla f\|^2$,
-последний столбец табл.~\ref{tab:h2}): у F3 она ниже всех, $-0.94$
-против $-0.65$ у F0. Эффект совпадает для Adam и AdamW. Заметим, что в Блоке~A с
+тенденция видна по AUC~--- среднему значению $\log_{10}\|\nabla f\|^2$
+по всей траектории (последний столбец табл.~\ref{tab:h2},
+рис.~\ref{fig:auc}). Эта величина отрицательна по построению, поскольку
+$\|\nabla f\|^2<1$, а \emph{меньшее} (более отрицательное) значение
+означает более глубокую сходимость: у F3 AUC наименьшая, $-0.94$ против
+$-0.65$ у F0. Эффект совпадает для Adam и AdamW. Заметим, что в Блоке~A с
 SGD-семейством линейная и медианная фильтрация при N2 пол почти не
 снижают (отношение F0/Fk${\,\approx\,}$1.0--1.26): выигрыш при долгой
 памяти~--- свойство связки «спектральное разреживание $+$ адаптивный
 шаг», что и утверждает H2. \textbf{H2 подтверждается.}
 
-\begin{table}[tbp]
+\begin{table}[H]
 \centering\footnotesize
 \setlength{\tabcolsep}{4pt}
 \caption{Долгая память N2, квадратичная задача, Adam (AdamW~--- те же
 значения). Базовая строка~--- без фильтра (F0); ускорение считается
 относительно неё, ускор.${}=T_\varepsilon^{\,\mathrm{F0}}/T_\varepsilon^{\,F}$.
 Приведены число итераций до $\varepsilon$-точности $T_\varepsilon$, это
-ускорение, шумовой пол и AUC по $\log\|\nabla f\|^2$.}
+ускорение, шумовой пол и AUC~--- среднее $\log_{10}\|\nabla f\|^2$ по
+траектории (отрицательно по построению, т.к.\ $\|\nabla f\|^2<1$;
+меньше~--- лучше).}
 \label{tab:h2}
 \begin{tabular}{lcccc}
 \toprule
@@ -524,7 +531,7 @@ F4 (медиана)         & 560 & 1.0$\times$        & 0.266 & $-0.59$ \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[tbp]
+\begin{figure}[H]
   \centering
   \includegraphics[width=\linewidth]{figures/longmemory_wavelet.pdf}
   \caption{Долгая память N2, Adam, 8~сидов. Слева~--- медианные кривые
@@ -535,6 +542,16 @@ F4 (медиана)         & 560 & 1.0$\times$        & 0.266 & $-0.59$ \\
   \label{fig:lm}
 \end{figure}
 
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\linewidth]{figures/longmemory_auc.pdf}
+  \caption{Та же конфигурация (N2, Adam). Слева~--- кривые
+    $\log_{10}\|\nabla f\|^2$, пунктир~--- их среднее, равное AUC.
+    Справа~--- AUC по фильтрам: значение отрицательно по построению,
+    у F3 оно наименьшее (наилучшее).}
+  \label{fig:auc}
+\end{figure}
+
 \textbf{H3 (смешанный шум N4).} На смешанном N4 ни один простой фильтр
 шумовой пол не снижает: отношение полов F0/Fk близко к единице для всех
 фильтров и всех задач (табл.~\ref{tab:h3}). Для адаптивных методов на N4
@@ -542,7 +559,7 @@ F4 (медиана)         & 560 & 1.0$\times$        & 0.266 & $-0.59$ \\
 коррелированным градиентным шумом, а избыточное сглаживание пола не
 улучшает. \textbf{Это согласуется с H3.}
 
-\begin{table}[tbp]
+\begin{table}[H]
 \centering\footnotesize
 \setlength{\tabcolsep}{4pt}
 \caption{Смешанный шум N4, SGD: отношение шумовых полов F0/Fk. Везде
@@ -572,7 +589,7 @@ ${\approx}1$~--- ни один простой фильтр пол не сниж�
 Yahoo Finance). Полные оценки по всем 9~инструментам приведены в
 табл.~\ref{tab:realdiag}.
 
-\begin{table}[tbp]
+\begin{table}[H]
 \centering\footnotesize
 \setlength{\tabcolsep}{4pt}
 \caption{Оценки тяжести хвоста $\hat{\alpha}$ (Маккаллох) и памяти
@@ -620,7 +637,7 @@ SGD с F4 ниже F0 в 91~раз (квадратичная), 120~раз (ло�
 уже не захватывает. Это эмпирическое подтверждение H3 уже на
 калиброванных данных.
 
-\begin{figure}[tbp]
+\begin{figure}[H]
   \centering
   \includegraphics[width=0.9\linewidth]{figures/calibrated_synthetic.pdf}
   \caption{Синтетика, откалиброванная под реальные $\hat{\alpha}$ и
@@ -655,7 +672,7 @@ SGD с F4 ниже F0 в 91~раз (квадратичная), 120~раз (ло�
 
 \subsection{Результаты}
 
-\begin{table}[tbp]
+\begin{table}[H]
 \centering\footnotesize
 \setlength{\tabcolsep}{4pt}
 \caption{Реальные ряды, Adam. $T$~--- медиана числа итераций до
@@ -697,7 +714,7 @@ H1/H4 на реальные ряды.
 \subsection{Сводка проверки гипотез}
 \label{sec:hyp-summary}
 
-\begin{table}[tbp]
+\begin{table}[H]
 \centering\footnotesize
 \setlength{\tabcolsep}{4pt}
 \caption{Итог проверки гипотез из раздела~\ref{sec:hyp}.}

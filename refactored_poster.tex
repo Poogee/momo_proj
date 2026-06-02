@@ -1,0 +1,207 @@
+\documentclass[a0,landscape]{a0poster}
+% Постер по проекту: чистый безрамочный 3-колоночный стиль
+% (красный заголовок, синие заголовки секций с линейкой, белый фон)
+% в духе шаблона optimization-class poster. Содержание согласовано
+% с refactored_paper.tex (фильтры F0–F4, шумы N1–N4, без каскада).
+
+\usepackage{fontspec}
+% Кириллицу XeLaTeX берёт прямо из шрифта; polyglossia не используем, т.к.
+% масштабирование шрифтов в a0poster (a0size) ломает её проверку OpenType.
+\setmainfont{PT Sans}
+% мягкие переносы недоступны без polyglossia — снимаем переполнения строк
+\tolerance=2000
+\emergencystretch=3em
+\sloppy
+
+\usepackage{amsmath,amssymb}
+\usepackage{multicol}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+
+\definecolor{titlered}{RGB}{170,30,30}
+\definecolor{headblue}{RGB}{0,71,133}
+
+\setlength{\columnsep}{3cm}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.7\baselineskip}
+
+% синий заголовок секции с линейкой — как в шаблоне
+\newcommand{\heading}[1]{\bigskip{\color{headblue}\LARGE\bfseries #1}\par
+  \vspace{-0.3\baselineskip}{\color{headblue}\hrule height 1.4pt}\smallskip}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\norm}[1]{\lVert#1\rVert}
+\DeclareMathOperator{\med}{med}
+
+\begin{document}
+
+% ===================== ШАПКА =====================
+{\color{titlered}\veryHuge\bfseries
+За пределами гауссова шума: сходимость стохастических\\
+оптимизаторов при тяжёлохвостовом и коррелированном\\
+финансовом шуме\par}
+\medskip
+{\Large Д.~Кортунов \quad В.~Пастушенко \quad А.~Дубовицкий \quad А.~Шадрин\par}
+\smallskip
+{\Large\textit{НИУ ВШЭ, Москва}\par}
+\medskip
+{\color{titlered}\hrule height 3pt}
+\bigskip
+
+\begin{multicols}{3}
+
+% ----------------------- КОЛОНКА 1 -----------------------
+\heading{Постановка}
+Наблюдаемый ряд~--- сигнал плюс шум, $y_t = s_t + \xi_t$. Перед обучением
+весь ряд проходит через причинный фильтр $F$: $\tilde y = F(y)$, и
+\emph{уже из сглаженного ряда} строятся признаки $\tilde\phi_t$. Обучаем
+прогнозную модель (AR($p$)) минимизацией риска методом первого порядка
+\[
+  g_k=\tfrac1{|\mathcal B_k|}\!\!\sum_{t\in\mathcal B_k}\!\!
+      \nabla_x\ell(x_k,\tilde\phi_t,c_t),\qquad
+  x_{k+1}=x_k-\eta\,\phi(g_k).
+\]
+Мишень~--- \emph{нефильтрованное} будущее значение $y_t$.
+
+На финансовых рядах шум \textbf{тяжёлохвостый} ($\alpha$-устойчивый,
+$\alpha<2$, бесконечная дисперсия) и \textbf{долгопамятный}. Тогда базовые
+предпосылки теории сходимости SGD нарушаются.
+
+\medskip
+\textbf{Вопрос.} Как тройка
+(тип шума)~$\times$~(фильтр)~$\times$~(оптимизатор) влияет на сходимость,
+и можно ли по диагностике ряда заранее выбрать удачную пару?
+
+\heading{Четыре класса шума}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{N1} & гауссов белый (контроль)\\
+\textbf{N2} & розовый $1/f$ (долгая память)\\
+\textbf{N3} & $\alpha$-устойчивый (тяжёлый хвост)\\
+\textbf{N4} & смешанный (хвост $\cap$ память)\\
+\bottomrule
+\end{tabular}
+
+\heading{Фильтры $F_0$–$F_4$ (все причинные)}
+\begin{tabular}{@{}ll@{}}
+\toprule
+$F_0$ & без фильтрации (контроль)\\
+$F_1$ & скользящее среднее (линейный)\\
+$F_2$ & фильтр Калмана (линейный)\\
+$F_3$ & вейвлет-порог (Добеши)\\
+$F_4$ & причинная медиана (робастный)\\
+\bottomrule
+\end{tabular}\par
+\smallskip
+\textbf{Оптимизаторы:} SGD, Clipped-SGD, Normalized-SGD, Adam, AdamW.
+Дизайн~--- два блока: \emph{A}~(SGD-семейство, N1/N3/N4; спасение пола) и
+\emph{B}~(Adam/AdamW, N2/N4; скорость).
+
+% ----------------------- КОЛОНКА 2 -----------------------
+\heading{Предпосылки и гипотезы}
+При $\alpha<2$ второй момент градиентного шума бесконечен~--- редкие
+гигантские шаги не дают SGD стабилизироваться. \textbf{Медиана} окна
+из $w$ симметричных величин имеет \emph{конечную} дисперсию при любом
+$\alpha\in(0,2]$~--- отсюда спасение. Линейные фильтры $\alpha$-устойчивость
+не убирают; долгую память лечит спектральное разреживание (вейвлет) или
+адаптивный шаг (Adam).
+\begin{itemize}\setlength{\itemsep}{0.2\baselineskip}
+\item \textbf{H1} (N3): медиана $F_4$ переводит SGD в сходящийся режим;
+      линейные фильтры~--- нет.
+\item \textbf{H2} (N2): для Adam/AdamW вейвлет $F_3$ ускоряет сходимость
+      сильнее линейных фильтров.
+\item \textbf{H3} (N4): ни один простой фильтр не снижает шумовой пол.
+\item \textbf{H4} (N1): фильтрация нейтральна, медиана чуть хуже среднего.
+\end{itemize}
+
+\heading{Э1 / H1: тяжёлые хвосты ($\alpha{=}1.2$, SGD)}
+Без фильтра и с линейными $F_1,F_2,F_3$~--- $0/8$ сходимостей; причинная
+медиана $F_4$~--- $\mathbf{8/8}$, шумовой пол ниже в $20$–$133\times$.
+\begin{center}\small
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Задача & бин.\,$F_0$ & бин.\,$F_4$ & пол $F_0$ & пол $F_4$\\
+\midrule
+квадратичная  & 0/8 & \textbf{8/8} & 0.540  & 0.0050\\
+логистическая & 0/8 & \textbf{8/8} & 0.0658 & 0.00050\\
+авторегрессия & 8/8 & 8/8 & 0.0421 & 0.0021\\
+\bottomrule
+\end{tabular}
+\end{center}
+\begin{center}
+\includegraphics[width=\linewidth]{figures/convergence_rescue.pdf}
+\end{center}
+\vspace{-0.3\baselineskip}
+{\small $F_0$ и линейные фильтры застревают на шумовом полу; $F_4$ уходит
+вниз на 1--2~порядка.}
+
+% ----------------------- КОЛОНКА 3 -----------------------
+\heading{H2 долгая память, H3 смешанный, H4 гаусс}
+\textbf{N2, Adam:} вейвлет $F_3$ ускоряет сходимость в
+$\mathbf{11.2\times}$ ($T_\varepsilon$ $562{\to}50$), Калман $F_2$~---
+$3.1\times$, линейные/медиана~--- нет.
+\begin{center}
+\includegraphics[width=\linewidth]{figures/longmemory_wavelet.pdf}
+\end{center}
+\vspace{-0.2\baselineskip}
+\textbf{N4:} отношение полов $F_0/F_k\approx1$ для всех фильтров~--- ни один
+простой фильтр не работает (\textbf{H3}). \textbf{N1:} фильтрация нейтральна,
+$F_4$ слегка проигрывает среднему (\textbf{H4}):
+\begin{center}
+\includegraphics[width=\linewidth]{figures/gaussian_control.pdf}
+\end{center}
+
+\heading{Э2–Э3: калибровка и реальные ряды}
+Медиана по корзине из 9~инструментов: $\hat\alpha\!\approx\!1.2$,
+$\hat d\!\approx\!0.29$. На калиброванной синтетике спасение пола
+сохраняется ($91$–$120\times$):
+\begin{center}
+\includegraphics[width=\linewidth]{figures/calibrated_synthetic.pdf}
+\end{center}
+На реальных рядах (Adam):
+\begin{center}\small
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Домен & сошл.\,$F_0$ & лучший & ускор.\\
+\midrule
+фин.\ 15-мин & 7/16 & $F_2$ & $\mathbf{78\times}$\\
+фин.\ дневные & 13/16 & $F_2$ & $10\times$\\
+сенсор ETT & 16/16 & $F_1$ & $2.1\times$\\
+макро FRED & 16/16 & $F_0$ & ---\\
+\bottomrule
+\end{tabular}
+\end{center}
+Фильтр помогает там, где шум тяжёлый, и нейтрален на «аккуратных» рядах.
+
+\heading{Правило $(\hat\alpha,\hat H)\to$ фильтр}
+\begin{center}\small
+\begin{tabular}{@{}llc@{}}
+\toprule
+Режим $(\hat\alpha,\hat H)$ & связка & осн.\\
+\midrule
+$\hat\alpha{\approx}2,\ \hat H{\approx}0.5$ & $F_0$ & [Т][Э]\\
+$\hat\alpha{\approx}2,\ \hat H{>}0.6$       & $F_3{+}$Adam & [Т][Э]\\
+$\hat\alpha{<}1.9,\ \hat H{\approx}0.5$     & $F_4{+}$SGD & [Т][Э]\\
+$\hat\alpha{<}1.9,\ \hat H{>}0.6$           & $F_4{/}F_2$, валид. & [Эв]\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\heading{Выводы}
+\begin{itemize}\setlength{\itemsep}{0.25\baselineskip}
+\item Робастная порядковая статистика (медиана) восстанавливает
+\textbf{конечную} дисперсию градиента~--- линейные фильтры этого не дают.
+\item Тяжёлый хвост сам по себе \emph{не} повод фильтровать: если узкое
+место не в сходимости (гаусс, светлый хвост), лучший выбор~--- $F_0$.
+\item Все четыре гипотезы H1--H4 подтверждены на синтетике и реальных рядах.
+\item Открытая проблема~--- смешанный режим N4.
+\end{itemize}
+
+\vfill
+{\small Код и данные: \texttt{github.com/Poogee/momo\_proj}}
+
+\end{multicols}
+\end{document}

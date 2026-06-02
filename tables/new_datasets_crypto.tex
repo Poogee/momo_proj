@@ -1,17 +1,17 @@
 \begin{table}[t]
-\caption{Все фильтры $F_0$--$F_7$ на головном домене (Binance крипто 1ч; 2 серии BTC/ETH $\times$ 4 сида, Adam, регрессия AR(5)). \emph{сход.} --- доля сошедшихся сидов; \emph{ускор.} и \emph{пол$\downarrow$} --- относительно $F_0$; \emph{holdout} --- MSE на сыром будущем ($F_0{=}0.918$). $F_3^{*}$ непричинный (оракул).}
+\caption{Все фильтры $F_0$--$F_7$ на головном домене (Binance крипто 1ч; 2 серии BTC/ETH $\times$ 4 сида, Adam, регрессия AR(5)). \emph{сход.} --- доля сошедшихся сидов; \emph{ускор.} --- во сколько раз меньше итераций до $100\times$-снижения $\|\nabla f\|^2$ относительно $F_0$; \emph{holdout} --- MSE на сыром будущем. $F_3^{*}$ непричинный (оракул).}
 \label{tab:crypto}
-\centering\begin{tabular}{lcccc}
+\centering\begin{tabular}{lccc}
 \toprule
-фильтр & сход. & ускор. & пол$\downarrow$ & holdout\\
+фильтр & сход. & ускор. & holdout\\
 \midrule
-$F_0$ & $3/8$ & $1.00\times$ & $1.0\times$ & 0.918\\
-$F_1$ & $8/8$ & $\mathbf{47\times}$ & $\mathbf{30\times}$ & 0.968\\
-$F_2$ & $8/8$ & $\mathbf{78\times}$ & $\mathbf{120\times}$ & 0.931\\
-$F_3$$^{*}$ & $0/8$ & $1.00\times$ & $\mathbf{31\times}$ & 0.917\\
-$F_4$ & $8/8$ & $\mathbf{45\times}$ & $\mathbf{17\times}$ & 0.981\\
-$F_5$ & $8/8$ & $\mathbf{64\times}$ & $\mathbf{127\times}$ & 0.930\\
-$F_6$ & $8/8$ & $\mathbf{49\times}$ & $3.0\times$ & 1.054\\
-$F_7$ & $8/8$ & $\mathbf{44\times}$ & $\mathbf{12\times}$ & 0.983\\
+$F_0$ & $3/8$ & $1.00\times$ & 0.918\\
+$F_1$ & $8/8$ & $\mathbf{47\times}$ & 0.968\\
+$F_2$ & $8/8$ & $\mathbf{78\times}$ & 0.931\\
+$F_3$$^{*}$ & $0/8$ & $1.00\times$ & 0.917\\
+$F_4$ & $8/8$ & $\mathbf{45\times}$ & 0.981\\
+$F_5$ & $8/8$ & $\mathbf{64\times}$ & 0.930\\
+$F_6$ & $8/8$ & $\mathbf{49\times}$ & 1.054\\
+$F_7$ & $8/8$ & $\mathbf{44\times}$ & 0.983\\
 \bottomrule
 \end{tabular}\end{table}

@@ -232,3 +232,23 @@ Living record of non-obvious engineering / methodological choices.
   concrete F0–F7, SGD/Adam live only in §III), so the reviewer's
   "separate task from algorithms" point is satisfied.
 - Wired the new generators into `reproduce.sh`.
+
+## 2026-06-02 (drop "пол" jargon; reconcile tables IV/V)
+
+- **Removed the gradient-"floor" jargon ("пол градиента").** In the
+  theory it is renamed to the standard "асимптотический уровень
+  $\|\nabla f\|^2$" (the limit in eq:floor); in the empirical tables and
+  figure the floor metric is dropped entirely (it was confusing — e.g.
+  F3 "не сошёлся 0/8" yet "пол 31×"). Table V lost its "пол↓" column,
+  the heatmap lost its floor panel (now a single speedup heatmap), and
+  every empirical "снижение пола 127×/120×/169×" claim is gone.
+- **Reconciled Tables IV and V (they "не сходились").** The rules table
+  was aggregating over all domains×models×optimizers (giving "7/40",
+  "max 80×") while Table V is one domain, Adam, regression — impossible
+  to cross-check. Rebuilt the rule derivation as a strict Adam-regression
+  per-domain rollup of Block D: heavy-tail+short-memory → F2, 5/10
+  domains, median 77.7×, max 80×. Now Table V crypto F2=78× sits exactly
+  on the rule median, and max 80× = Block D's 15-min row. III↔IV↔V agree
+  cell-for-cell.
+- Fixed stray 0.38/"4/4" (crypto has 2 series × 4 seeds = 8 cells →
+  "3/8 → 8/8" everywhere). Recompiled clean; tests pass.

@@ -1,10 +1,9 @@
 """Comprehensive all-filters figure for the June 2026 study.
 
-Two heatmaps over the full set F0..F7 x all domains (Adam, regression):
-  (a) convergence speedup vs F0  (log-coloured, annotated)
-  (b) gradient-floor reduction vs F0
-so every filter and every domain is visible with the correct, contiguous
-numbering. F3 is the non-causal oracle (marked *).
+One heatmap over the full set F0..F7 x all domains (Adam, regression):
+convergence speedup vs F0 (how many fewer iterations to a 100x drop of
+||grad f||^2). Every filter and every domain is visible with the correct,
+contiguous numbering. F3 is the non-causal oracle (marked *).
 
 Output: figures/new_datasets_heatmap.pdf
 """
@@ -85,20 +84,14 @@ def main():
         print("no summary; skip")
         return
     df = pd.read_csv(SUMM)
-    fig, axes = plt.subplots(2, 1, figsize=(9.0, 6.6))
+    fig, ax = plt.subplots(1, 1, figsize=(9.0, 3.7))
     M1, doms = _pivot(df, "speedup_vs_F0")
-    _panel(axes[0], M1, doms,
-           r"(а) Ускорение сходимости Adam относительно $F_0$ "
-           r"(во сколько раз; $>1$ — быстрее)",
+    _panel(ax, M1, doms,
+           r"Ускорение сходимости Adam относительно $F_0$ "
+           r"(во сколько раз меньше итераций; $>1$ — быстрее)",
            r"$\log_{10}$ ускор.")
-    M2, _ = _pivot(df, "floor_ratio_vs_F0")
-    _panel(axes[1], M2, doms,
-           r"(б) Снижение шумового пола $\|\nabla f\|^2$ относительно $F_0$ "
-           r"($>1$ — ниже пол)",
-           r"$\log_{10}$ сниж.")
-    fig.text(0.012, 0.5, r"фильтр ($F_3^{*}$ — непричинный, оракул)",
-             rotation=90, va="center", fontsize=8)
-    fig.tight_layout(rect=(0.02, 0, 1, 1))
+    ax.set_ylabel(r"фильтр ($F_3^{*}$ — непричинный, оракул)", fontsize=8)
+    fig.tight_layout()
     OUT.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT, bbox_inches="tight")
     print(f"wrote {OUT}  ({len(FILTERS)} filters x {len(doms)} domains)")

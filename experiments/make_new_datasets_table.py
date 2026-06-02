@@ -95,13 +95,13 @@ def _bucket(ah, hh):
     return ("light" if ah >= 1.9 else "heavy") + "_" + ("long" if hh > 0.6 else "short")
 
 
-def derive_rules() -> pd.DataFrame:
-    """Recompute the (alpha,H) -> filter rule from the per-cell summary,
-    reporting where filtering ACTUALLY helps (speedup>=1.5) rather than a
-    raw mode over all cells (most of which never need a filter)."""
-    s = pd.read_csv(SUMM)
+def _best_causal_per_domain(s: pd.DataFrame) -> pd.DataFrame:
+    """For each domain (Adam, regression) pick the best causal filter the
+    SAME way Block D (Table III) does, so the rule table is a strict
+    rollup of Block D and reconciles with it cell-for-cell."""
+    g = s[(s["optimizer"] == "adam") & (s["model"] == "regression")]
     recs = []
-    for (dn, mdl, opt), sub in s.groupby(["domain", "model", "optimizer"]):
+    for dn, sub in g.groupby("domain"):
         f0 = sub[sub["filter"] == "F0"]
         if f0.empty:
             continue
@@ -114,9 +114,16 @@ def derive_rules() -> pd.DataFrame:
         else:
             b = ok.loc[ok["t_conv_med"].idxmin()]
             best, sp = str(b["filter"]), f0t / max(float(b["t_conv_med"]), 1.0)
-        recs.append(dict(domain=dn, model=mdl, optimizer=opt,
-                         bucket=_bucket(ah, hh), best=best, speedup=sp))
-    r = pd.DataFrame(recs)
+        recs.append(dict(domain=dn, bucket=_bucket(ah, hh), best=best, speedup=sp))
+    return pd.DataFrame(recs)
+
+
+def derive_rules() -> pd.DataFrame:
+    """Per (alpha,H) sector: of the domains in it (Adam regression), how
+    many are helped by a filter (best speedup >=1.5), the dominant such
+    filter, and the speedup range among the helped domains. A strict
+    rollup of Block D -> reconciles with Tables III and V."""
+    r = _best_causal_per_domain(pd.read_csv(SUMM))
     rows = []
     for bk in BUCKET_ORDER:
         sub = r[r["bucket"] == bk]
@@ -154,15 +161,15 @@ def rules():
                         f"{int(r['helped'])}/{int(r['n'])} & "
                         f"${r['med_speedup']:.1f}\\times$ & {sp}\\\\")
     OUT_R.write_text(
-        "\\begin{table}[t]\n\\caption{Эмпирическое правило, выведенное из"
-        " блока~D. Для каждого сектора $(\\hat\\alpha,\\hat H)$: фильтр, дающий"
-        " ускорение там, где фильтрация \\emph{вообще} помогает"
-        " ($\\ge1.5\\times$), доля таких ячеек (домен$\\times$модель$\\times$опт.),"
-        " медианное и максимальное ускорение среди них. Где доля нулевая ---"
-        " рекомендуется $F_0$ (не фильтровать). $F_2$~--- Калман, $F_5$~---"
-        " каскад медиана$\\to$Калман, $F_6$~--- адаптивный каскад.}\n"
+        "\\begin{table}[t]\n\\caption{Правило выбора, свёрнутое из блока~D"
+        " (табл.~\\ref{tab:blockD}; Adam, регрессия AR(5)). Для каждого"
+        " сектора $(\\hat\\alpha,\\hat H)$: доминирующий фильтр, в скольких"
+        " доменах сектора он ускоряет сходимость хотя бы в $1.5\\times$,"
+        " медианное и максимальное ускорение среди этих доменов. Где ни в"
+        " одном --- рекомендуется $F_0$ (не фильтровать). $F_1$~--- скольз."
+        " среднее, $F_2$~--- Калман, $F_5$~--- каскад медиана$\\to$Калман.}\n"
         "\\label{tab:rules}\n\\centering\\begin{tabular}{lcccc}\n\\toprule\n"
-        "сектор $(\\hat\\alpha,\\hat H)$ & фильтр & помог & медиан. & макс.\\\\\n"
+        "сектор $(\\hat\\alpha,\\hat H)$ & фильтр & доменов & медиан. & макс.\\\\\n"
         "\\midrule\n" + "\n".join(rows) + "\n\\bottomrule\n"
         "\\end{tabular}\\end{table}\n", encoding="utf-8")
     print(f"wrote {OUT_R}\n" + rl.to_string(index=False))
@@ -187,24 +194,23 @@ def crypto_all_filters():
         if r.empty:
             continue
         r = r.iloc[0]
-        sp = float(r["speedup_vs_F0"]); fr = float(r["floor_ratio_vs_F0"])
+        sp = float(r["speedup_vs_F0"])
         conv = float(r["conv_frac"]); ho = float(r["holdout_med"])
         nc = int(r["n_cells"])
         mark = "" if fk in CAUSAL else "$^{*}$"
         sp_t = (f"$\\mathbf{{{sp:.0f}\\times}}$" if sp >= 10
                 else (f"${sp:.1f}\\times$" if sp >= 1.05 else f"${sp:.2f}\\times$"))
-        fr_t = f"$\\mathbf{{{fr:.0f}\\times}}$" if fr >= 10 else f"${fr:.1f}\\times$"
         rows.append(f"$F_{fk[1:]}${mark} & ${round(conv*nc)}/{nc}$ & {sp_t} & "
-                    f"{fr_t} & {ho:.3f}\\\\")
+                    f"{ho:.3f}\\\\")
     OUT_C.write_text(
         "\\begin{table}[t]\n\\caption{Все фильтры $F_0$--$F_7$ на головном"
         " домене (Binance крипто 1ч; 2 серии BTC/ETH $\\times$ 4 сида, Adam,"
-        " регрессия AR(5))."
-        " \\emph{сход.} --- доля сошедшихся сидов; \\emph{ускор.} и"
-        " \\emph{пол$\\downarrow$} --- относительно $F_0$; \\emph{holdout}"
-        " --- MSE на сыром будущем ($F_0{=}0.918$). $F_3^{*}$ непричинный"
-        " (оракул).}\n\\label{tab:crypto}\n\\centering\\begin{tabular}{lcccc}\n"
-        "\\toprule\nфильтр & сход. & ускор. & пол$\\downarrow$ & holdout\\\\\n"
+        " регрессия AR(5)). \\emph{сход.} --- доля сошедшихся сидов;"
+        " \\emph{ускор.} --- во сколько раз меньше итераций до"
+        " $100\\times$-снижения $\\|\\nabla f\\|^2$ относительно $F_0$;"
+        " \\emph{holdout} --- MSE на сыром будущем. $F_3^{*}$ непричинный"
+        " (оракул).}\n\\label{tab:crypto}\n\\centering\\begin{tabular}{lccc}\n"
+        "\\toprule\nфильтр & сход. & ускор. & holdout\\\\\n"
         "\\midrule\n" + "\n".join(rows) + "\n\\bottomrule\n"
         "\\end{tabular}\\end{table}\n", encoding="utf-8")
     print(f"wrote {OUT_C}")

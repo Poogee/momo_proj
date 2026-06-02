@@ -211,10 +211,11 @@ def fig_longmemory(summ_csv, curves_npz, out):
 
 
 def fig_longmemory_auc(summ_csv, curves_npz, out):
-    """AUC visual for long-memory N2. AUC is the MEAN of log10||g||^2 over
-    the trajectory, hence negative (||g||^2<1); lower = better.
-    (a) the log10 curves with their mean (=AUC) drawn as a dashed line;
-    (b) AUC bars per filter for Adam/AdamW."""
+    """Mean-log-gradient visual for long-memory N2. The metric is the MEAN
+    of log10||g||^2 over the trajectory (not an area under ||g||^2), hence
+    negative since ||g||^2<1; lower = better.
+    (a) the log10 curves with their mean drawn as a dashed line;
+    (b) mean-log bars per filter for Adam/AdamW."""
     summ = pd.read_csv(summ_csv)
     sns.set_theme(context="paper", style="whitegrid", font_scale=0.92)
     fig, (axa, axb) = plt.subplots(1, 2, figsize=(12, 4.6))
@@ -234,7 +235,7 @@ def fig_longmemory_auc(summ_csv, curves_npz, out):
             axa.axhline(float(np.mean(y)), color=col, ls="--", lw=1.0)
         axa.set_xlabel("доля горизонта")
         axa.set_ylabel(r"$\log_{10}\|\nabla f(x_k)\|^2$")
-        axa.set_title("(а) лог-кривые; пунктир — среднее (= AUC)")
+        axa.set_title(r"(а) лог-кривые; пунктир — среднее $\overline{\log_{10}\|\nabla f\|^2}$")
         axa.legend(fontsize=8)
     except Exception as e:  # pragma: no cover
         axa.text(0.5, 0.5, f"curves n/a\n{e}", ha="center")
@@ -249,13 +250,13 @@ def fig_longmemory_auc(summ_csv, curves_npz, out):
         axb.bar(x + i * 0.4, ys, 0.4, label=opt)
     axb.set_xticks(x + 0.2)
     axb.set_xticklabels(filt)
-    axb.set_ylabel(r"AUC: среднее $\log_{10}\|\nabla f\|^2$ (ниже — лучше)")
-    axb.set_title("(б) AUC по фильтрам: у F3 наименьшая (лучшая)")
+    axb.set_ylabel(r"среднее $\log_{10}\|\nabla f\|^2$ (ниже — лучше)")
+    axb.set_title("(б) по фильтрам: у F3 наименьшее (лучшее)")
     axb.legend(fontsize=8)
 
-    fig.suptitle(r"Долгая память N2, Adam: AUC — среднее "
-                 r"$\log_{10}\|\nabla f\|^2$ по траектории "
-                 r"(отрицательна по построению)", fontweight="bold")
+    fig.suptitle(r"Долгая память N2, Adam: средний $\log_{10}\|\nabla f\|^2$ "
+                 r"по траектории (отрицателен, т.к. $\|\nabla f\|^2<1$)",
+                 fontweight="bold")
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150)

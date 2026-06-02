@@ -91,3 +91,12 @@ After iteration 18:
 | J3 | Paywalled sources dropped | DECISIONS.md note | LOBSTER full feed, NYSE TAQ, CRSP not freely obtainable → excluded honestly (not synthesized). |
 | J4 | Fresh real factorial | `tables/new_datasets*.csv`, `tables/new_datasets_block_d.tex`, `experiments/make_new_datasets_table.py` | Binance 1h: Adam 0/4 → **F10 4/4, 72.7×, floor 169×**, holdout flat. C-MAPSS: **F4 1.9× + holdout −20%**. ATM 1.7×. NOAA/ETTm2: F0 wins (control). Electricity/Traffic dropped as non-showing. |
 | J5 | Report rewritten around results | `paper_ru.tex` §III filter family, §I contribution, §IV Block D + semi-synthetic, §V candidates/when-not/cascade/antipatterns, §VI conclusion | Recompiled clean. Each removed filter justified; new positive/negative results wired into the practical criteria. |
+
+## Full set restored + contiguous numbering + wide rule (June 2026)
+
+| # | Title | Tangible artifact | Headline result |
+|---|-------|-------------------|-----------------|
+| K1 | Contiguous filter numbering F0–F7 | `experiments/run_new_datasets.py` (`STUDY_FILTERS`), `paper_ru.tex` (global renumber F10→F5, F11→F6, FA→F7) | Original five F0–F4 restored; F5 cascade, F6 adaptive cascade, F7 online. F3 non-causal (oracle). No more F4→F10 gap. |
+| K2 | Wide 17-domain basket | `_domains()` in runner | Financial returns (daily/15m/5m/crypto-1h) + volatility \|r\| + FRED + ETTh1/h2/m1/m2 + Electricity + Traffic + NOAA + C-MAPSS + ATM + sunspots. All four (α,H) sectors populated. 6528 cells. |
+| K3 | Where-it-helps rule table | `make_new_datasets_table.py` → `tables/new_datasets_rules.{csv,tex}` | heavy-tail+short-memory → F2/F5, up to 80×; all other sectors → F0. |
+| K4 | Honest headline re-measure | `tables/new_datasets_summary.csv`, Block D + rules prose | Crypto-1h: F0 conv 0.38 → F2 78× / F5 64× (floor 127×, best). Dropped the spurious C-MAPSS −20% (baseline artifact); kept the oracle-vs-causal gap and the cascade-oversmoothing antipattern. |

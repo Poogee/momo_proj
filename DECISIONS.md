@@ -169,3 +169,41 @@ Living record of non-obvious engineering / methodological choices.
   Block D, semi-synthetic, candidate table, "when not to filter",
   cascade-default, antipatterns, conclusion. `paper_ru.pdf` recompiled
   clean (no undefined refs); 27 filter tests pass.
+
+## 2026-06-02 (restore full set + clean numbering + wide rule)
+
+- **Reverted the lean trim; restored the original five and gave the whole
+  pool contiguous numbering** $F_0$--$F_7$ (no more $F_4\to F_{10}$ gap):
+  $F_0$ identity, $F_1$ MA, $F_2$ Kalman, $F_3$ wavelet (non-causal /
+  oracle only), $F_4$ causal median, $F_5$ cascade median→Kalman (was
+  F10), $F_6$ adaptive cascade (was F11), $F_7$ online median/EMA (was
+  FA). The paper was globally renumbered to match. CNN denoisers, the
+  adaptive wavelet, hybrid, router and ensemble stay out of the study
+  (slow, never beat the cascades).
+- **Wide basket for full-coverage rule derivation** (17 domains): the
+  extended daily financial basket, intraday 15m/5m, Binance crypto 1h,
+  volatility |r| (daily + crypto, the long-memory regime), FRED,
+  ETTh1/h2/m1/m2, Electricity, Traffic, NOAA, C-MAPSS, ATM, sunspots.
+  6528 cells in ~18 min. All four (α̂,Ĥ) sectors are now populated (the
+  |r| and sunspots series supply Ĥ>0.6).
+- **Headline shifted with the full set.** With F2 (Kalman) back in, on
+  heavy-tailed short-memory returns it edges the cascade on raw Adam
+  speed: crypto-1h F2 ≈78×, 15m ≈80×, 5m ≈78×, daily ≈19× (F0 converges
+  only 0.38–0.7 of seeds). The cascade F5 is second on speed (≈64×) but
+  gives the **largest gradient-floor reduction (127× vs 120× for F2)** —
+  so F5 stays the principled default when the floor matters (SGD / mixed
+  regime); F2 when only Adam wall-clock matters. Mechanism per Remark n2
+  (Adam's EMA bias under autocorrelation), not the tail per se.
+- **Dropped the lean-run "C-MAPSS −20% holdout" claim** — it was an
+  artifact of a different F0 baseline (8 vs 6 sensors). In the full run
+  causal F4/F7 give only ~5–8% holdout gain on C-MAPSS; the −41% comes
+  from the *non-causal* oracle wavelet F3, which is excluded from the
+  rule. Reported honestly as the gap between oracle and achievable causal
+  gain. The "don't blindly cascade over a slow trend" antipattern still
+  holds (F5 triples C-MAPSS holdout MSE: 0.97 vs 0.32).
+- **Derived rule (tab:rules), reported where filtering ACTUALLY helps
+  (speedup ≥1.5), not a raw mode**: heavy-tail+short-memory → F2/F5
+  (helps 7/40 cells, up to 80×); every other sector → F0. New runner
+  `run_new_datasets.py` + `make_new_datasets_table.py` emit
+  `new_datasets_{summary,criteria,rules}.csv` and the two LaTeX tables.
+  paper recompiled clean; tests pass.

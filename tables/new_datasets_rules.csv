@@ -1,0 +1,5 @@
+bucket,n,helped,filter,share,med_speedup,max_speedup
+light_short,8,0,F0,0.0,1.0,1.0
+light_long,8,1,F1,0.125,1.880952380952381,1.880952380952381
+heavy_short,40,7,F2,0.175,18.568181818181817,80.35416666666667
+heavy_long,12,1,F1,0.08333333333333333,1.6,1.6

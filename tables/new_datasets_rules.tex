@@ -1,0 +1,13 @@
+\begin{table}[t]
+\caption{Эмпирическое правило, выведенное из блока~D. Для каждого сектора $(\hat\alpha,\hat H)$: фильтр, дающий ускорение там, где фильтрация \emph{вообще} помогает ($\ge1.5\times$), доля таких ячеек (домен$\times$модель$\times$опт.), медианное и максимальное ускорение среди них. Где доля нулевая --- рекомендуется $F_0$ (не фильтровать). $F_2$~--- Калман, $F_5$~--- каскад медиана$\to$Калман, $F_6$~--- адаптивный каскад.}
+\label{tab:rules}
+\centering\begin{tabular}{lcccc}
+\toprule
+сектор $(\hat\alpha,\hat H)$ & фильтр & помог & медиан. & макс.\\
+\midrule
+$\hat\alpha{\approx}2,\ \hat H{\approx}0.5$ & $F_0$ & --- & $1.0\times$ & $1.0\times$\\
+$\hat\alpha{\approx}2,\ \hat H{>}0.6$ & $F_1$ & 1/8 & $1.9\times$ & $1.9\times$\\
+$\hat\alpha{<}1.9,\ \hat H{\approx}0.5$ & $F_2$ & 7/40 & $18.6\times$ & $\mathbf{80\times}$\\
+$\hat\alpha{<}1.9,\ \hat H{>}0.6$ & $F_1$ & 1/12 & $1.6\times$ & $1.6\times$\\
+\bottomrule
+\end{tabular}\end{table}

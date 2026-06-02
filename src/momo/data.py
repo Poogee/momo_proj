@@ -15,7 +15,20 @@ DEFAULT_TICKERS = {
     "crypto": ["BTC-USD", "ETH-USD"],
 }
 
+# Extended basket: same character as DEFAULT_TICKERS but covers more
+# regimes (commodities, bonds, volatility index, more crypto) so the
+# practical-criteria conclusions are not asset-specific.
+EXTENDED_TICKERS = {
+    "equity":     ["SPY", "QQQ", "DIA", "IWM", "AAPL", "MSFT", "JPM", "XOM"],
+    "fx":         ["EURUSD=X", "GBPUSD=X", "JPY=X", "AUDUSD=X"],
+    "crypto":     ["BTC-USD", "ETH-USD", "SOL-USD", "ADA-USD"],
+    "commodity":  ["GLD", "USO", "SLV"],   # gold, oil, silver ETFs
+    "bond":       ["TLT", "IEF"],          # long / intermediate treasuries
+    "volatility": ["^VIX"],                # equity vol index
+}
+
 DATA_DIR = Path("data/cache")
+RAW_DIR = Path("data/raw")
 MIN_OBSERVATIONS = 500
 
 
@@ -285,30 +298,39 @@ def fetch_fred(series_ids: list[str] | None = None,
     return df
 
 
-_ETT_URL = ("https://raw.githubusercontent.com/zhouhaoyi/ETDataset/"
-            "main/ETT-small/ETTh1.csv")
+_ETT_BASE = "https://raw.githubusercontent.com/zhouhaoyi/ETDataset/main/ETT-small/"
+_ETT_VARIANTS = ("ETTh1", "ETTh2", "ETTm1", "ETTm2")
 
 
-def _synthetic_ett(n: int = 9000) -> pd.DataFrame:
-    rng = np.random.default_rng(7)
-    idx = pd.date_range("2016-07-01", periods=n, freq="h", name="date")
+def _synthetic_ett(n: int = 9000, freq: str = "h",
+                   seed: int = 7) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+    idx = pd.date_range("2016-07-01", periods=n, freq=freq, name="date")
+    per_day = {"h": 24, "15min": 96, "T": 1440}.get(freq, 24)
     t = np.arange(n)
-    daily = 6.0 * np.sin(2 * np.pi * t / 24.0)
-    weekly = 3.0 * np.sin(2 * np.pi * t / (24.0 * 7))
+    daily = 6.0 * np.sin(2 * np.pi * t / per_day)
+    weekly = 3.0 * np.sin(2 * np.pi * t / (per_day * 7))
     load = 20.0 + daily + weekly + np.cumsum(rng.normal(0, 0.15, n))
-    ot = 10.0 + 0.4 * load + 4.0 * np.sin(2 * np.pi * t / (24.0 * 30)) \
+    ot = 10.0 + 0.4 * load + 4.0 * np.sin(2 * np.pi * t / (per_day * 30)) \
         + rng.normal(0, 1.0, n)
     return pd.DataFrame({"HUFL": load + rng.normal(0, 1.0, n),
                          "OT": ot}, index=idx)
 
 
-def fetch_nonfinancial(cache: bool = True) -> pd.DataFrame:
-    """Non-financial open sensor series: the ETT (Electricity Transformer
-    Temperature) hourly dataset — transformer oil temperature ``OT`` and
-    high-useful-load ``HUFL``. Stable raw-GitHub source, deterministic
-    synthetic fallback, cached to parquet."""
+def fetch_nonfinancial(variant: str = "ETTh1",
+                       cache: bool = True) -> pd.DataFrame:
+    """Non-financial open sensor series from the ETT collection
+    (Electricity Transformer Temperature). ``variant`` is one of
+    ``ETTh1``/``ETTh2`` (hourly) or ``ETTm1``/``ETTm2`` (15-minute).
+    Returns columns ``HUFL`` (high-useful-load) and ``OT`` (operational
+    transformer temperature). Stable raw-GitHub source with a
+    deterministic synthetic fallback so experiments stay reproducible
+    offline. Cached to parquet per variant.
+    """
+    if variant not in _ETT_VARIANTS:
+        raise ValueError(f"variant must be one of {_ETT_VARIANTS}")
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    path = DATA_DIR / "nonfinancial_etth1.parquet"
+    path = DATA_DIR / f"nonfinancial_{variant.lower()}.parquet"
     if cache and path.exists():
         df = pd.read_parquet(path)
         df.index = pd.DatetimeIndex(pd.to_datetime(df.index), name="date")
@@ -316,7 +338,7 @@ def fetch_nonfinancial(cache: bool = True) -> pd.DataFrame:
     df: pd.DataFrame | None = None
     if _host_reachable("raw.githubusercontent.com"):
         try:
-            raw = pd.read_csv(_ETT_URL)
+            raw = pd.read_csv(_ETT_BASE + f"{variant}.csv")
             raw["date"] = pd.to_datetime(raw["date"], errors="coerce")
             raw = raw.set_index("date")
             keep = [c for c in ("HUFL", "OT") if c in raw.columns]
@@ -325,10 +347,391 @@ def fetch_nonfinancial(cache: bool = True) -> pd.DataFrame:
         except Exception:
             df = None
     if df is None or df.empty:
-        df = _synthetic_ett()
+        freq = "h" if variant.startswith("ETTh") else "15min"
+        n = 9000 if variant.startswith("ETTh") else 12000
+        seed = 7 if "1" in variant else 11
+        df = _synthetic_ett(n=n, freq=freq, seed=seed)
     df = df.sort_index().ffill().dropna(how="all")
     df.index = pd.DatetimeIndex(
         pd.to_datetime(df.index).to_numpy("datetime64[ns]"), name="date")
+    if cache:
+        df.to_parquet(path)
+    return df
+
+
+_SUNSPOT_URL = "https://www.sidc.be/SILSO/INFO/sndtotcsv.php"
+
+
+def _synthetic_sunspots(n: int = 6000, seed: int = 13) -> pd.DataFrame:
+    """Synthetic 11-year cycle + AR(1) residual, with sparse heavy spikes.
+    The signal is smooth and recoverable, so filters should help — this is
+    a positive non-financial control with a known answer."""
+    rng = np.random.default_rng(seed)
+    idx = pd.date_range("1900-01-01", periods=n, freq="D", name="date")
+    t = np.arange(n)
+    cycle = 80.0 + 60.0 * np.sin(2 * np.pi * t / (11 * 365.25))
+    ar = np.zeros(n)
+    for i in range(1, n):
+        ar[i] = 0.97 * ar[i - 1] + rng.normal(0, 5.0)
+    spikes = (rng.uniform(size=n) < 0.005) * rng.normal(0, 40.0, size=n)
+    sn = np.clip(cycle + ar + spikes, 0.0, None)
+    return pd.DataFrame({"sunspot": sn}, index=idx)
+
+
+def fetch_sunspots(cache: bool = True) -> pd.DataFrame:
+    """Daily sunspot number — the canonical long-memory, mildly
+    heavy-tailed scientific series. Falls back to a deterministic
+    synthetic 11-year cycle if SIDC is unreachable. Cached to parquet."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    path = DATA_DIR / "nonfinancial_sunspots.parquet"
+    if cache and path.exists():
+        df = pd.read_parquet(path)
+        df.index = pd.DatetimeIndex(pd.to_datetime(df.index), name="date")
+        return df
+    df: pd.DataFrame | None = None
+    if _host_reachable("www.sidc.be"):
+        import io
+        import urllib.request
+        try:
+            req = urllib.request.Request(
+                _SUNSPOT_URL,
+                headers={"User-Agent": "momo-research/1.0"},
+            )
+            with urllib.request.urlopen(req, timeout=20) as resp:
+                raw = pd.read_csv(io.BytesIO(resp.read()), sep=";",
+                                  header=None, engine="python")
+            # SILSO daily file columns (positional): year;month;day;dec_yr;sn;...
+            if raw.shape[1] >= 5:
+                y, m, d = raw[0].astype(int), raw[1].astype(int), raw[2].astype(int)
+                idx = pd.to_datetime(dict(year=y, month=m, day=d),
+                                     errors="coerce")
+                sn = pd.to_numeric(raw[4], errors="coerce")
+                df = pd.DataFrame({"sunspot": sn.values},
+                                  index=pd.DatetimeIndex(idx, name="date"))
+                df = df[df["sunspot"] >= 0]
+        except Exception:
+            df = None
+    if df is None or df.empty:
+        df = _synthetic_sunspots()
+    df = df.sort_index().ffill().dropna(how="all")
+    df.index = pd.DatetimeIndex(
+        pd.to_datetime(df.index).to_numpy("datetime64[ns]"), name="date")
+    if cache:
+        df.to_parquet(path)
+    return df
+
+
+# ======================================================================
+# Additional real-world datasets (June 2026 sweep).
+#
+# Each loader follows the house pattern: parquet cache -> raw file in
+# ``data/raw`` -> network download -> deterministic synthetic fallback,
+# so every downstream experiment runs reproducibly offline. Sources that
+# require a paid subscription / portal login (LOBSTER full feed, NYSE TAQ,
+# CRSP) are intentionally NOT wrapped here -- they are not freely
+# obtainable and are dropped from the study; see DECISIONS.md.
+# ======================================================================
+
+
+def _cache(name: str) -> Path:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    return DATA_DIR / name
+
+
+def fetch_binance(symbol: str = "BTCUSDT", interval: str = "1h",
+                  year: int = 2024, cache: bool = True) -> pd.DataFrame:
+    """Binance spot klines (public data.binance.vision feed, no key).
+
+    Returns a single ``close`` column indexed by close-time. Reads any
+    monthly zips already present under ``data/raw`` first; otherwise
+    downloads the 12 monthly zips for ``year``. Deterministic synthetic
+    GBM fallback when the feed is unreachable. Cached to parquet.
+    """
+    path = _cache(f"binance_{symbol}_{interval}_{year}.parquet")
+    if cache and path.exists():
+        df = pd.read_parquet(path)
+        df.index = pd.DatetimeIndex(pd.to_datetime(df.index), name="close_time")
+        return df
+
+    import io
+    import urllib.request
+    import zipfile
+
+    def _read_month_bytes(buf: bytes) -> pd.DataFrame | None:
+        try:
+            with zipfile.ZipFile(io.BytesIO(buf)) as z:
+                inner = z.namelist()[0]
+                raw = pd.read_csv(io.BytesIO(z.read(inner)), header=None)
+            # spot kline schema: open_time, o,h,l,c, vol, close_time, ...
+            close = pd.to_numeric(raw.iloc[:, 4], errors="coerce")
+            ct = pd.to_datetime(raw.iloc[:, 6].astype("int64"), unit="ms",
+                                errors="coerce")
+            return pd.DataFrame({"close": close.values},
+                                index=pd.DatetimeIndex(ct, name="close_time"))
+        except Exception:
+            return None
+
+    frames: list[pd.DataFrame] = []
+    for m in range(1, 13):
+        fn = f"{symbol}-{interval}-{year}-{m:02d}.zip"
+        local = RAW_DIR / fn
+        buf = None
+        if local.exists():
+            buf = local.read_bytes()
+        elif _host_reachable("data.binance.vision"):
+            url = (f"https://data.binance.vision/data/spot/monthly/klines/"
+                   f"{symbol}/{interval}/{fn}")
+            try:
+                req = urllib.request.Request(
+                    url, headers={"User-Agent": "momo-research/1.0"})
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    buf = resp.read()
+            except Exception:
+                buf = None
+        if buf is not None:
+            one = _read_month_bytes(buf)
+            if one is not None and not one.empty:
+                frames.append(one)
+
+    if frames:
+        df = pd.concat(frames).sort_index()
+        df = df[~df.index.duplicated(keep="first")].dropna()
+    else:
+        # synthetic hourly GBM fallback so experiments still run
+        n = 24 * 365
+        rng = np.random.default_rng(abs(hash(symbol)) % (2 ** 32))
+        idx = pd.date_range(f"{year}-01-01", periods=n, freq="h",
+                            name="close_time")
+        px = 30000.0 * np.exp(np.cumsum(rng.normal(0, 0.01, n)))
+        df = pd.DataFrame({"close": px}, index=idx)
+    if cache:
+        df.to_parquet(path)
+    return df
+
+
+_LSTNET_BASE = ("https://raw.githubusercontent.com/laiguokun/"
+                "multivariate-time-series-data/master/")
+
+
+def _fetch_lstnet(name: str, url_sub: str, raw_name: str,
+                  cache: bool = True) -> pd.DataFrame:
+    """Shared loader for the laiguokun multivariate-time-series datasets
+    (electricity, traffic) shipped as gzipped headerless CSV matrices
+    (rows = hourly steps, columns = series)."""
+    path = _cache(f"{name}.parquet")
+    if cache and path.exists():
+        return pd.read_parquet(path)
+    import gzip
+    import io
+    import urllib.request
+
+    raw = None
+    local = RAW_DIR / raw_name
+    if local.exists():
+        raw = local.read_bytes()
+    elif _host_reachable("raw.githubusercontent.com"):
+        try:
+            req = urllib.request.Request(
+                _LSTNET_BASE + url_sub,
+                headers={"User-Agent": "momo-research/1.0"})
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                raw = resp.read()
+        except Exception:
+            raw = None
+    if raw is not None:
+        try:
+            txt = gzip.decompress(raw)
+            mat = pd.read_csv(io.BytesIO(txt), header=None)
+        except Exception:
+            mat = None
+    else:
+        mat = None
+    if mat is None or mat.empty:
+        rng = np.random.default_rng(99)
+        n, k = 8000, 8
+        t = np.arange(n)
+        cols = {f"s{j}": 10.0 + 5.0 * np.sin(2 * np.pi * t / 24 + j)
+                + np.cumsum(rng.normal(0, 0.2, n)) for j in range(k)}
+        mat = pd.DataFrame(cols)
+    mat.columns = [f"s{j}" for j in range(mat.shape[1])]
+    if cache:
+        mat.to_parquet(path)
+    return mat
+
+
+def fetch_electricity(n_series: int = 8, cache: bool = True) -> pd.DataFrame:
+    """UCI/LSTNet electricity load (321 clients, hourly 2012--2014).
+    Returns ``n_series`` columns spread across the client index."""
+    df = _fetch_lstnet("nonfinancial_electricity",
+                       "electricity/electricity.txt.gz",
+                       "electricity.txt.gz", cache=cache)
+    step = max(1, df.shape[1] // n_series)
+    return df.iloc[:, ::step].iloc[:, :n_series]
+
+
+def fetch_traffic(n_series: int = 8, cache: bool = True) -> pd.DataFrame:
+    """LSTNet PEMS traffic occupancy (862 sensors, hourly).
+    Returns ``n_series`` columns spread across the sensor index."""
+    df = _fetch_lstnet("nonfinancial_traffic",
+                       "traffic/traffic.txt.gz",
+                       "traffic.txt.gz", cache=cache)
+    step = max(1, df.shape[1] // n_series)
+    return df.iloc[:, ::step].iloc[:, :n_series]
+
+
+def fetch_weather_noaa(station: str = "USW00094728",
+                       cache: bool = True) -> pd.DataFrame:
+    """NOAA GHCN-daily station record (TMAX/TMIN in deg C, PRCP in mm).
+    Default station USW00094728 = NY Central Park (1869--present).
+    Reads ``data/raw/noaa_<station>.csv`` first, else NCEI access CSV."""
+    path = _cache(f"nonfinancial_noaa_{station}.parquet")
+    if cache and path.exists():
+        df = pd.read_parquet(path)
+        df.index = pd.DatetimeIndex(pd.to_datetime(df.index), name="date")
+        return df
+    import io
+    import urllib.request
+
+    raw = None
+    local = RAW_DIR / f"noaa_{station}.csv"
+    if local.exists():
+        raw = pd.read_csv(local, usecols=lambda c: c in
+                          ("DATE", "TMAX", "TMIN", "PRCP"))
+    elif _host_reachable("www.ncei.noaa.gov"):
+        url = ("https://www.ncei.noaa.gov/data/"
+               "global-historical-climatology-network-daily/access/"
+               f"{station}.csv")
+        try:
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "momo-research/1.0"})
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                raw = pd.read_csv(io.BytesIO(resp.read()),
+                                  usecols=lambda c: c in
+                                  ("DATE", "TMAX", "TMIN", "PRCP"))
+        except Exception:
+            raw = None
+    if raw is not None and not raw.empty:
+        raw["DATE"] = pd.to_datetime(raw["DATE"], errors="coerce")
+        raw = raw.set_index("DATE").sort_index()
+        out = pd.DataFrame(index=raw.index)
+        # GHCN units: TMAX/TMIN in tenths of deg C, PRCP in tenths of mm
+        if "TMAX" in raw:
+            out["TMAX"] = pd.to_numeric(raw["TMAX"], errors="coerce") / 10.0
+        if "TMIN" in raw:
+            out["TMIN"] = pd.to_numeric(raw["TMIN"], errors="coerce") / 10.0
+        df = out.dropna(how="all").ffill()
+    else:
+        rng = np.random.default_rng(31)
+        n = 20000
+        idx = pd.date_range("1960-01-01", periods=n, freq="D", name="date")
+        t = np.arange(n)
+        seas = 15.0 + 12.0 * np.sin(2 * np.pi * t / 365.25)
+        df = pd.DataFrame({"TMAX": seas + rng.normal(0, 3.0, n),
+                           "TMIN": seas - 8 + rng.normal(0, 3.0, n)},
+                          index=idx)
+    df.index = pd.DatetimeIndex(
+        pd.to_datetime(df.index).to_numpy("datetime64[ns]"), name="date")
+    if cache:
+        df.to_parquet(path)
+    return df
+
+
+_CMAPSS_URL = ("https://raw.githubusercontent.com/edwardzjl/CMAPSSData/"
+               "master/train_FD001.txt")
+# sensors that actually vary on FD001 (constant channels excluded)
+_CMAPSS_SENSORS = (2, 3, 4, 8, 11, 13)
+_CMAPSS_UNITS = (1, 2, 3, 4, 5, 6)
+
+
+def fetch_cmapss(units=_CMAPSS_UNITS, sensors=_CMAPSS_SENSORS,
+                 cache: bool = True) -> pd.DataFrame:
+    """NASA C-MAPSS turbofan degradation (FD001 training set). Returns one
+    column ``u<unit>_s<sensor>`` per (engine unit, sensor) trajectory --
+    a slowly degrading sensor signal with structural measurement noise.
+    Columns have different lengths (per-unit run-to-failure) and are
+    NaN-padded; callers drop NaNs per column."""
+    path = _cache("nonfinancial_cmapss_fd001.parquet")
+    if cache and path.exists():
+        full = pd.read_parquet(path)
+    else:
+        import io
+        import urllib.request
+
+        arr = None
+        local = RAW_DIR / "train_FD001.txt"
+        if local.exists():
+            arr = np.loadtxt(local)
+        elif _host_reachable("raw.githubusercontent.com"):
+            try:
+                req = urllib.request.Request(
+                    _CMAPSS_URL, headers={"User-Agent": "momo-research/1.0"})
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    arr = np.loadtxt(io.BytesIO(resp.read()))
+            except Exception:
+                arr = None
+        if arr is None:
+            rng = np.random.default_rng(17)
+            rows = []
+            for u in range(1, 11):
+                T = int(rng.integers(150, 300))
+                for c in range(1, T + 1):
+                    base = [u, c, 0, 0, 0]
+                    sens = [500 + 50 * np.exp(c / T) + rng.normal(0, 2.0)
+                            for _ in range(21)]
+                    rows.append(base + sens)
+            arr = np.array(rows, dtype=float)
+        # column layout: unit, cycle, 3 op-settings, 21 sensors
+        cols = {}
+        for u in range(1, int(arr[:, 0].max()) + 1):
+            sub = arr[arr[:, 0] == u]
+            order = np.argsort(sub[:, 1])
+            sub = sub[order]
+            for s in range(1, 22):
+                cols[f"u{u}_s{s}"] = pd.Series(sub[:, 4 + s])
+        full = pd.DataFrame(cols)
+        if cache:
+            full.to_parquet(path)
+    keep = [f"u{u}_s{s}" for u in units for s in sensors
+            if f"u{u}_s{s}" in full.columns]
+    return full[keep]
+
+
+def fetch_atm(cache: bool = True) -> pd.DataFrame:
+    """Daily ATM cash-withdrawal totals (single ATM, ~2.2k days).
+    Public Kaggle-derived CSV mirrored on GitHub. Returns one
+    ``withdrawn`` column ordered chronologically by record id."""
+    path = _cache("nonfinancial_atm.parquet")
+    if cache and path.exists():
+        return pd.read_parquet(path)
+    import io
+    import urllib.request
+
+    raw = None
+    local = RAW_DIR / "atm.csv"
+    url = ("https://raw.githubusercontent.com/anjalysam/"
+           "ATM_Transaction-data_analysis-/master/atm%20bank%20dataset.csv")
+    if local.exists():
+        raw = pd.read_csv(local)
+    elif _host_reachable("raw.githubusercontent.com"):
+        try:
+            req = urllib.request.Request(
+                url, headers={"User-Agent": "momo-research/1.0"})
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                raw = pd.read_csv(io.BytesIO(resp.read()))
+        except Exception:
+            raw = None
+    if raw is not None and "total_amount_withdrawn" in raw.columns:
+        raw = raw.sort_values("id") if "id" in raw.columns else raw
+        df = pd.DataFrame({"withdrawn": pd.to_numeric(
+            raw["total_amount_withdrawn"], errors="coerce").to_numpy()})
+        df = df.dropna()
+    else:
+        rng = np.random.default_rng(53)
+        n = 2200
+        t = np.arange(n)
+        week = 1.0 + 0.4 * np.sin(2 * np.pi * t / 7)
+        df = pd.DataFrame({"withdrawn":
+                           5e5 * week * np.exp(rng.normal(0, 0.3, n))})
     if cache:
         df.to_parquet(path)
     return df

@@ -12,7 +12,12 @@ dist/
 venv/
 runs/*/raw/
 data/cache/
+data/raw/
 *.parquet.tmp
 *.lock
+*.aux
+*.log
+*.out
+*.toc
 .DS_Store
 .build/

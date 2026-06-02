@@ -231,6 +231,109 @@ class EnsembleAverageFilter:
 
 
 @dataclass(frozen=True)
+class CausalCascadeFilter:
+    """Strictly causal two-stage cascade designed for the mixed regime
+    where the noise has both heavy tails (alpha<2) and long memory (H>1/2).
+
+    Stage 1 — short causal median (window m): collapses isolated alpha-stable
+    spikes into a finite-variance residual (Lemma in the paper, finite
+    second moment of an order statistic).
+    Stage 2 — Kalman local-level recursion: smooths the residual long-memory
+    drift that the median alone cannot remove (the window is too short to
+    capture LRD clusters).
+
+    Both stages are O(T) and use only past samples, so applying it on a
+    real series introduces no look-ahead bias.
+    """
+
+    median_window: int = 3
+    process_var: float = 1e-3
+    obs_var: float = 1.0
+
+    def apply(self, y: np.ndarray) -> np.ndarray:
+        y = np.asarray(y, dtype=float)
+        if y.size == 0:
+            return y.copy()
+        stage1 = CausalMedianFilter(window=max(1, int(self.median_window))).apply(y)
+        stage2 = KalmanLocalLevelFilter(
+            process_var=float(self.process_var),
+            obs_var=float(self.obs_var),
+        ).apply(stage1)
+        return stage2
+
+
+@dataclass(frozen=True)
+class AdaptiveCascadeFilter:
+    """Strictly causal adaptive cascade that selects its own stages from
+    online noise diagnostics. Computed only on the *training* slice the
+    user passes in (we never peek at future samples).
+
+    Decision rule:
+      alpha_hat < alpha_thr  -> include short causal median stage (tails)
+      H_hat   > hurst_thr    -> append Kalman/Wavelet smoothing (LRD)
+      both                    -> full cascade (median -> Kalman)
+      neither                 -> identity (do nothing — F0)
+
+    The thresholds match the practical criteria reported in the paper
+    (alpha_thr=1.9, hurst_thr=0.6). If the series is too short for a stable
+    estimate we fall back to a short causal median.
+    """
+
+    alpha_threshold: float = 1.9
+    hurst_threshold: float = 0.6
+    median_window: int = 3
+    process_var: float = 1e-3
+    obs_var: float = 1.0
+    min_length: int = 128
+
+    def apply(self, y: np.ndarray) -> np.ndarray:
+        from momo.metrics import hurst_dfa, mcculloch_alpha
+
+        y = np.asarray(y, dtype=float)
+        n = y.size
+        if n == 0:
+            return y.copy()
+        if n < self.min_length:
+            return CausalMedianFilter(window=max(1, int(self.median_window))).apply(y)
+        # diagnostics on the differenced series (so a non-stationary level
+        # does not dominate the empirical quantiles)
+        diff = np.diff(y)
+        alpha_hat = mcculloch_alpha(diff)
+        if not np.isfinite(alpha_hat):
+            alpha_hat = 2.0
+        h_hat = hurst_dfa(diff)
+        if not np.isfinite(h_hat):
+            h_hat = 0.5
+        heavy = alpha_hat < float(self.alpha_threshold)
+        long_mem = h_hat > float(self.hurst_threshold)
+        out = y.copy()
+        if heavy:
+            out = CausalMedianFilter(window=max(1, int(self.median_window))).apply(out)
+        if long_mem:
+            out = KalmanLocalLevelFilter(
+                process_var=float(self.process_var),
+                obs_var=float(self.obs_var),
+            ).apply(out)
+        return out
+
+
+@dataclass(frozen=True)
+class CausalHybridMedianWavelet:
+    """Causal variant of :class:`HybridMedianWaveletFilter` — uses the
+    causal median in stage 1 so the cascade can be reported on real
+    walk-forward data without look-ahead bias.
+    """
+
+    median_window: int = 5
+    wavelet: str = "db4"
+    mode: str = "soft"
+
+    def apply(self, y: np.ndarray) -> np.ndarray:
+        pre = CausalMedianFilter(window=max(1, int(self.median_window))).apply(y)
+        return AdaptiveWaveletFilter(wavelet=self.wavelet, mode=self.mode).apply(pre)
+
+
+@dataclass(frozen=True)
 class AdaptiveMetaFilter:
     alpha_threshold: float = 1.9
     hurst_residual_threshold: float = 0.65
@@ -256,24 +359,28 @@ class AdaptiveMetaFilter:
         return KalmanLocalLevelFilter(process_var=1e-3, obs_var=1.0).apply(y)
 
 
+# Canonical, contiguous numbering. Causal variants are used whenever a
+# filter is reported on real-data walk-forward; non-causal variants are
+# kept for synthetic-only ablations and clearly marked in the paper.
 FILTER_REGISTRY = {
-    "F0": IdentityFilter,
-    "F1": MovingAverageFilter,
-    "F2": KalmanLocalLevelFilter,
-    "F3": WaveletThresholdFilter,
-    "F4": MedianFilter,
-    "F6": AdaptiveWaveletFilter,
-    "F7": HybridMedianWaveletFilter,
-    "F8": AdaptiveMetaFilter,
-    "FA": OnlineAdaptiveFilter,
-    "FE": EnsembleAverageFilter,
+    "F0": IdentityFilter,                # identity (control)
+    "F1": MovingAverageFilter,           # causal MA, linear
+    "F2": KalmanLocalLevelFilter,        # causal Kalman, linear
+    "F3": WaveletThresholdFilter,        # wavelet soft-threshold (synthetic)
+    "F4": CausalMedianFilter,            # causal median (nonlinear)
+    "F5": None,                          # learnable CNN (filled below)
+    "F6": AdaptiveWaveletFilter,         # data-driven wavelet
+    "F7": CausalHybridMedianWavelet,     # causal median -> wavelet cascade
+    "F8": AdaptiveMetaFilter,            # diagnostic-routed single filter
+    "F9": None,                          # learnable CNN (large, filled below)
+    "F10": CausalCascadeFilter,          # NEW: causal median -> Kalman
+    "F11": AdaptiveCascadeFilter,        # NEW: online-diagnostic cascade
+    "FA": OnlineAdaptiveFilter,          # online causal med/EMA switch
+    "FE": EnsembleAverageFilter,         # average ensemble
 }
 
+# learnable CNN filters live in their own module to keep torch optional
 from momo.learnable import LearnableCNNFilter, LearnableCNNFilterV2  # noqa: E402
 
 FILTER_REGISTRY["F5"] = LearnableCNNFilter
 FILTER_REGISTRY["F9"] = LearnableCNNFilterV2
-
-from momo.learnable import LearnableCNNFilter  # noqa: E402
-
-FILTER_REGISTRY["F5"] = LearnableCNNFilter

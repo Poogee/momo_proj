@@ -169,10 +169,20 @@ def test_online_adaptive_causal_and_robust():
 
 
 def test_registry_keys_present():
-    assert {"F0", "F1", "F2", "F3", "F4"}.issubset(set(FILTER_REGISTRY.keys()))
-    assert "FA" in FILTER_REGISTRY
+    # canonical, contiguous numbering used in the paper
+    expected = {"F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7",
+                "F8", "F9", "F10", "F11", "FA", "FE"}
+    assert expected.issubset(set(FILTER_REGISTRY.keys()))
     assert FILTER_REGISTRY["F0"] is IdentityFilter
     assert FILTER_REGISTRY["F1"] is MovingAverageFilter
     assert FILTER_REGISTRY["F2"] is KalmanLocalLevelFilter
     assert FILTER_REGISTRY["F3"] is WaveletThresholdFilter
-    assert FILTER_REGISTRY["F4"] is MedianFilter
+    # F4 is the *causal* median (paper uses it on real walk-forward data)
+    from momo.filters import CausalMedianFilter
+    assert FILTER_REGISTRY["F4"] is CausalMedianFilter
+    # new cascade filters introduced in this revision
+    from momo.filters import (AdaptiveCascadeFilter, CausalCascadeFilter,
+                              CausalHybridMedianWavelet)
+    assert FILTER_REGISTRY["F7"] is CausalHybridMedianWavelet
+    assert FILTER_REGISTRY["F10"] is CausalCascadeFilter
+    assert FILTER_REGISTRY["F11"] is AdaptiveCascadeFilter

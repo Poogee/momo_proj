@@ -88,3 +88,63 @@ def test_hawkes_determinism():
     a = HawkesClusteredJumpNoise().sample(500, np.random.default_rng(7))
     b = HawkesClusteredJumpNoise().sample(500, np.random.default_rng(7))
     assert np.allclose(a, b)
+
+
+# --- new causal cascade filters (paper revision: F10, F11, causal F7) ---
+
+def test_causal_cascade_filter_shape_and_causality():
+    from momo.filters import CausalCascadeFilter
+    import numpy as np
+    rng = np.random.default_rng(0)
+    y = np.cumsum(rng.standard_cauchy(800) * 0.1)
+    out = CausalCascadeFilter(median_window=3).apply(y)
+    assert out.shape == y.shape
+    assert np.all(np.isfinite(out))
+    # causal: output of prefix matches first part of full output
+    pref = CausalCascadeFilter(median_window=3).apply(y[:400])
+    assert np.allclose(pref, out[:400], atol=1e-12)
+
+
+def test_adaptive_cascade_returns_identity_on_gaussian():
+    from momo.filters import AdaptiveCascadeFilter
+    import numpy as np
+    rng = np.random.default_rng(1)
+    y = rng.normal(size=2000) * 0.5
+    out = AdaptiveCascadeFilter().apply(y)
+    # gaussian -> alpha_hat ~ 2, H ~ 0.5 -> rule fires neither stage,
+    # so the output should be the input (modulo float).
+    assert np.allclose(out, y, atol=1e-10)
+
+
+def test_adaptive_cascade_fires_on_heavy_tailed():
+    """When the diagnostic sees a heavy-tailed differenced series the
+    adaptive cascade *must* engage at least the median stage, i.e. the
+    output is different from the input."""
+    from momo.filters import AdaptiveCascadeFilter
+    import numpy as np
+    from scipy.stats import levy_stable
+    y = levy_stable.rvs(alpha=1.2, beta=0, scale=0.3, size=2000,
+                        random_state=42)
+    out = AdaptiveCascadeFilter().apply(y)
+    assert out.shape == y.shape
+    assert not np.allclose(out, y)
+
+
+def test_causal_hybrid_median_wavelet_basic():
+    """F7 = causal median (first stage) -> adaptive wavelet (second stage).
+    The median stage is strictly causal; the wavelet stage uses
+    information from the whole input window (its MAD threshold and
+    symmetric padding are global). So we only test shape, finiteness
+    and non-triviality — strict causality of the *combined* filter is
+    not claimed.
+    """
+    from momo.filters import CausalHybridMedianWavelet
+    import numpy as np
+    rng = np.random.default_rng(0)
+    y = rng.standard_cauchy(800) * 0.05
+    out = CausalHybridMedianWavelet(median_window=5).apply(y)
+    assert out.shape == y.shape
+    assert np.all(np.isfinite(out))
+    # the cascade should actually denoise — output is much less spiky
+    # than the input
+    assert float(np.std(out)) < float(np.std(y))

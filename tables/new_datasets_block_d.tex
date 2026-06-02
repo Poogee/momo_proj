@@ -1,0 +1,14 @@
+\begin{table}[t]
+\caption{Блок~D (июнь 2026). Новые датасеты, тощий набор фильтров $\{F_0,F_4,F_{\mathrm{A}},F_{10},F_{11}\}$, Adam, регрессия AR(5), по 4 сида. Лучший фильтр --- доля сходимости $\ge0.75$ и holdout MSE не более чем на 10\% хуже $F_0$; среди них минимум итераций до $100\times$-снижения градиента. \emph{ускор.} --- отношение медиан числа итераций; \emph{holdout} --- лучший/$F_0$.}
+\label{tab:blockD}
+\centering\begin{tabular}{lccccc}
+\toprule
+домен & $\hat\alpha$ & $\hat H$ & лучш. & ускор. & holdout\\
+\midrule
+Binance BTC/ETH 1ч & $1.46$ & $0.05$ & $F10$ & $\mathbf{72.7\times}$ & 0.88/0.865\\
+CMAPSS (турбина) & $2.00$ & $0.13$ & $F4$ & $\mathbf{1.9\times}$ & 0.474/0.594\\
+ATM (снятия) & $1.77$ & $0.08$ & $F10$ & $\mathbf{1.7\times}$ & 0.67/0.627\\
+NOAA Weather & $1.79$ & $0.21$ & $F0$ & $1.00\times$ & 0.145/0.145\\
+ETTm2 (сенсор) & $1.66$ & $0.22$ & $F0$ & $1.00\times$ & 0.0906/0.0906\\
+\bottomrule
+\end{tabular}\end{table}

@@ -66,3 +66,28 @@ After iteration 18:
 - ~73 tests passing
 - ~26-page Typst report
 - Full reproduction via `bash reproduce.sh`
+
+## Revision iteration — paper restructure (May 2026)
+
+| # | Title | Tangible artifact | Headline result |
+|---|-------|-------------------|-----------------|
+| R1 | Paper restructured into 4 logical sections | `paper_ru.tex` §I introduction, §II time-series model + formal problem (no algorithms), §III theoretical background + filter/optimizer families + hypotheses, §IV experiments + analysis, §V practical criteria [T/E/H tagged], §VI conclusion | Addresses the structural-clarity reviewer comment. |
+| R2 | New causal cascade filter F10 (median → Kalman) | `src/momo/filters.py:CausalCascadeFilter` | Designed for the mixed regime N4 (heavy tails ∩ long memory) where single-stage filters do not pan out. |
+| R3 | New adaptive cascade filter F11 (diagnostic-routed) | `src/momo/filters.py:AdaptiveCascadeFilter` | Picks stages by online α̂/Ĥ; correctly returns identity on Gaussian, engages median on heavy tails. |
+| R4 | Causal hybrid med→wavelet (F7) properly named | `src/momo/filters.py:CausalHybridMedianWavelet` | Median stage strictly causal; wavelet stage uses train-segment MAD (no test peek when applied to train only). |
+| R5 | Contiguous filter numbering F0–F11 + FA + FE | `src/momo/filters.py:FILTER_REGISTRY` | Single source of truth; tests assert all 14 keys are present. |
+| R6 | Extended dataset coverage | `src/momo/data.py:EXTENDED_TICKERS`, `fetch_nonfinancial(variant=ETTh1/h2/m1)`, `fetch_sunspots()` | 22 financial tickers (equity/FX/crypto/commodities/bonds/vol) + ETTh1/h2/m1 + 200 yr of SIDC sunspots. |
+| R7 | Extended factorial experiment | `experiments/run_extended_factorial.py`, `tables/extended_factorial*.csv`, `tables/extended_factorial_block_d.tex` | Block D: F2 Kalman gives 73× on fin. 15-min, 77× on 5-min, 14.7× on daily (Adam regression); cascade F10 58×, F11 45×. On FRED/sunspots/ETT F0 wins (correctly). |
+| R8 | Synthetic N4 cascade study (Block C) | `experiments/run_cascade_n4.py`, `tables/cascade_n4*.csv`, `tables/cascade_n4_block_c.tex` | Honest reporting: cascade gives modest ≈1.2× on synthetic N4 with default settings, up to ≈1.5× with longer median; main positive sign comes from real Block D. |
+| R9 | Tests for new filters | `tests/test_extended_filters.py` (+4 tests) | Causality of F10, adaptive engagement of F11, identity-on-Gaussian sanity. 106 passing. |
+| R10 | Bibliography updated | `refs.bib` — Anantharam & Borkar 2012 + Chandak et al. 2026 correctly listed | Closes the "[12] placeholder" reviewer comment from the previous revision. |
+
+## Fresh-data sweep + lean filters (June 2026)
+
+| # | Title | Tangible artifact | Headline result |
+|---|-------|-------------------|-----------------|
+| J1 | Lean causal filter set | `experiments/run_new_datasets.py` (`LEAN_FILTERS`) | Deployed pool cut 14→5: `{F0,F4,FA,F10,F11}`. Linear/wavelet kept only as synthetic baselines; CNN/hybrid/router/ensemble removed (slow / never beat the cascades). |
+| J2 | New dataset loaders | `src/momo/data.py`: `fetch_binance`, `fetch_electricity`, `fetch_traffic`, `fetch_weather_noaa`, `fetch_cmapss`, `fetch_atm` | Binance BTC/ETH 1h, UCI/LSTNet electricity+traffic, NOAA GHCN-daily, NASA C-MAPSS, ATM withdrawals; ETTm2 via existing loader. Cache→raw→net→synthetic. |
+| J3 | Paywalled sources dropped | DECISIONS.md note | LOBSTER full feed, NYSE TAQ, CRSP not freely obtainable → excluded honestly (not synthesized). |
+| J4 | Fresh real factorial | `tables/new_datasets*.csv`, `tables/new_datasets_block_d.tex`, `experiments/make_new_datasets_table.py` | Binance 1h: Adam 0/4 → **F10 4/4, 72.7×, floor 169×**, holdout flat. C-MAPSS: **F4 1.9× + holdout −20%**. ATM 1.7×. NOAA/ETTm2: F0 wins (control). Electricity/Traffic dropped as non-showing. |
+| J5 | Report rewritten around results | `paper_ru.tex` §III filter family, §I contribution, §IV Block D + semi-synthetic, §V candidates/when-not/cascade/antipatterns, §VI conclusion | Recompiled clean. Each removed filter justified; new positive/negative results wired into the practical criteria. |

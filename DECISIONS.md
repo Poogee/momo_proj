@@ -278,3 +278,17 @@ Living record of non-obvious engineering / methodological choices.
   boxes). NB: torch in this env currently fails to dlopen libtorch_cpu,
   so the torch-importing filter tests can't collect — environmental, not
   from these changes; the paper/figure/table generators don't use torch.
+
+## 2026-06-02 (fix broken filter \description, heatmap, + poster)
+
+- The filter family was an itemized \description with long bold labels;
+  in the narrow IEEE column the labels overprinted the formulas ("text on
+  text", "math on one line"). Rewrote it as run-in \paragraph* headers
+  with each filter's formula on its own numbered display line --- readable.
+- Heatmap made taller (9.2x5.0) with larger annotations/labels so cells
+  are near-square and legible.
+- Added poster.tex (a0poster, landscape, borderless 4-column red-header
+  style matching the MIPT-class template the user linked): Задача /
+  Фильтр-конвейер (F0–F7) / Механизм (медианная лемма, каскад) /
+  Эксперимент / Результаты (heatmap) / Правило (α,H)→фильтр / Выводы.
+  Reuses figures/new_datasets_heatmap.pdf. Compiles to A0 with pdflatex.

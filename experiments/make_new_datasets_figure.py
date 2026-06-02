@@ -60,9 +60,9 @@ def _panel(ax, M, doms, title, cbar_label):
     im = ax.imshow(L, aspect="auto", cmap="RdBu_r", norm=norm)
     ax.set_xticks(range(len(doms)))
     ax.set_xticklabels([DOMAIN_PRETTY.get(d, d) for d in doms],
-                       rotation=55, ha="right", fontsize=7)
+                       rotation=45, ha="right", fontsize=8.5)
     ax.set_yticks(range(len(FILTERS)))
-    ax.set_yticklabels([FILT_LBL[f] for f in FILTERS], fontsize=9)
+    ax.set_yticklabels([FILT_LBL[f] for f in FILTERS], fontsize=11)
     for i in range(M.shape[0]):
         for j in range(M.shape[1]):
             v = M[i, j]
@@ -70,10 +70,10 @@ def _panel(ax, M, doms, title, cbar_label):
                 continue
             txt = f"{v:.0f}" if v >= 9.5 else (f"{v:.1f}" if v >= 1.05
                                                else f"{v:.2f}")
-            ax.text(j, i, txt, ha="center", va="center", fontsize=6,
+            ax.text(j, i, txt, ha="center", va="center", fontsize=7.5,
                     color="white" if (L[i, j] > 1.0 or L[i, j] < -0.55)
                     else "black")
-    ax.set_title(title, fontsize=10)
+    ax.set_title(title, fontsize=11)
     cb = ax.figure.colorbar(im, ax=ax, fraction=0.025, pad=0.01)
     cb.set_label(cbar_label, fontsize=8)
     cb.ax.tick_params(labelsize=7)
@@ -84,7 +84,7 @@ def main():
         print("no summary; skip")
         return
     df = pd.read_csv(SUMM)
-    fig, ax = plt.subplots(1, 1, figsize=(9.0, 3.7))
+    fig, ax = plt.subplots(1, 1, figsize=(9.2, 5.0))
     M1, doms = _pivot(df, "speedup_vs_F0")
     _panel(ax, M1, doms,
            r"Ускорение сходимости Adam относительно $F_0$ "

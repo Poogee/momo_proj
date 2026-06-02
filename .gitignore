@@ -21,3 +21,4 @@ data/raw/
 *.toc
 .DS_Store
 .build/
+a0header.ps

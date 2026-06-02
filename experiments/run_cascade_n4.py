@@ -148,22 +148,9 @@ def main():
             )
         rows.append("\\midrule" if m == "logistic" else "")
 
-    body = "\n".join(r for r in rows if r)
-    Path("tables/cascade_n4_block_c.tex").write_text(
-        "\\begin{table}[t]\n"
-        "\\caption{Блок~C. Синтетический смешанный режим $N_4$"
-        " ($\\hat d{=}0.4$, $\\alpha{=}1.2$), SGD, $8$ сидов, \\emph{все}"
-        " фильтры $F_0$--$F_6$. Бинарная сходимость и шумовой пол"
-        " относительно $F_0$. Новый каскад $F_5$ (медиана$\\to$Калман)"
-        " даёт наибольшее снижение пола; одиночные линейные/вейвлет фильтры"
-        " идут вдоль $F_0$.}\n"
-        "\\label{tab:blockC}\n"
-        "\\centering\\begin{tabular}{llccc}\n"
-        "\\toprule\n"
-        "модель & фильтр & бин. & пол $\\|\\nabla f\\|^2$ & vs $F_0$\\\\\n"
-        "\\midrule\n" + body + "\n"
-        "\\bottomrule\\end{tabular}\\end{table}\n",
-        encoding="utf-8")
+    # Block C is reported as prose in the paper (the synthetic N4 result is
+    # deliberately modest), so we only emit the CSV summary, not a table.
+    _ = rows
 
     print("\n=== Block C — cascade on N4, SGD ===")
     for _, r in sub.iterrows():

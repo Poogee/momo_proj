@@ -77,17 +77,19 @@ def block_d():
         rows.append(f"{DOMAIN_PRETTY.get(dn, dn)} & ${ah:.2f}$ & ${hh:.2f}$ & "
                     f"${_flabel(best)}$ & {sp_txt} & {bh:.3g}/{f0h:.3g}\\\\")
     OUT_D.write_text(
-        "\\begin{table}[t]\n\\caption{Блок~D (июнь 2026). Широкая корзина,"
-        " набор $F_0$--$F_7$, Adam, регрессия AR(5), 4 сида. Лучший"
+        "\\begin{table}[t]\n\\caption{Блок~D. Широкая корзина, набор"
+        " $F_0$--$F_7$, Adam, регрессия AR(5), 4 сида. Лучший"
         " \\emph{причинный} фильтр: доля сходимости $\\ge0.75$ и holdout MSE"
         " не более чем на 10\\% хуже $F_0$; среди них минимум итераций до"
-        " $100\\times$-снижения градиента (оракульный $F_3$ в выбор не"
-        " входит). \\emph{ускор.} --- отношение медиан числа итераций.}\n"
-        "\\label{tab:blockD}\n\\centering\\footnotesize"
+        " $100\\times$-снижения $\\|\\nabla f\\|^2$ (непричинный $F_3$ в"
+        " выбор не входит). \\emph{ускор.} --- отношение медиан числа"
+        " итераций; \\emph{holdout} --- лучший/$F_0$.}\n"
+        "\\label{tab:blockD}\n\\centering\n"
+        "\\resizebox{\\columnwidth}{!}{%\n"
         "\\begin{tabular}{lccccc}\n\\toprule\n"
         "домен & $\\hat\\alpha$ & $\\hat H$ & лучш. & ускор. & holdout\\\\\n"
         "\\midrule\n" + "\n".join(rows) + "\n\\bottomrule\n"
-        "\\end{tabular}\\end{table}\n", encoding="utf-8")
+        "\\end{tabular}}\\end{table}\n", encoding="utf-8")
     print(f"wrote {OUT_D} ({len(rows)} domains)")
 
 
@@ -197,10 +199,10 @@ def crypto_all_filters():
         sp = float(r["speedup_vs_F0"])
         conv = float(r["conv_frac"]); ho = float(r["holdout_med"])
         nc = int(r["n_cells"])
-        mark = "" if fk in CAUSAL else "$^{*}$"
+        note = "" if fk in CAUSAL else "\\,(непр.)"
         sp_t = (f"$\\mathbf{{{sp:.0f}\\times}}$" if sp >= 10
                 else (f"${sp:.1f}\\times$" if sp >= 1.05 else f"${sp:.2f}\\times$"))
-        rows.append(f"$F_{fk[1:]}${mark} & ${round(conv*nc)}/{nc}$ & {sp_t} & "
+        rows.append(f"$F_{fk[1:]}${note} & ${round(conv*nc)}/{nc}$ & {sp_t} & "
                     f"{ho:.3f}\\\\")
     OUT_C.write_text(
         "\\begin{table}[t]\n\\caption{Все фильтры $F_0$--$F_7$ на головном"
@@ -208,8 +210,9 @@ def crypto_all_filters():
         " регрессия AR(5)). \\emph{сход.} --- доля сошедшихся сидов;"
         " \\emph{ускор.} --- во сколько раз меньше итераций до"
         " $100\\times$-снижения $\\|\\nabla f\\|^2$ относительно $F_0$;"
-        " \\emph{holdout} --- MSE на сыром будущем. $F_3^{*}$ непричинный"
-        " (оракул).}\n\\label{tab:crypto}\n\\centering\\begin{tabular}{lccc}\n"
+        " \\emph{holdout} --- MSE на сыром будущем. ``непр.'' --- $F_3$"
+        " не причинный (использует будущее).}\n"
+        "\\label{tab:crypto}\n\\centering\\begin{tabular}{lccc}\n"
         "\\toprule\nфильтр & сход. & ускор. & holdout\\\\\n"
         "\\midrule\n" + "\n".join(rows) + "\n\\bottomrule\n"
         "\\end{tabular}\\end{table}\n", encoding="utf-8")

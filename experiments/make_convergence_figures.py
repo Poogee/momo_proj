@@ -59,8 +59,8 @@ def fig_rescue(summ_csv, curves_npz, out):
     axa.set_xticks(x + 0.4 - w / 2)
     axa.set_xticklabels([MODEL_LBL.get(m, m) for m in models], rotation=15,
                         ha="right", fontsize=9)
-    axa.set_ylabel(r"шумовой пол $\|\nabla f\|^2$ (медиана, p10–p90)")
-    axa.set_title("(а) Тяжёлые хвосты N3, SGD: фильтр снижает пол")
+    axa.set_ylabel(r"асимпт. уровень $\|\nabla f\|^2$ (медиана, p10–p90)")
+    axa.set_title("(а) Тяжёлые хвосты N3, SGD: $F_4$ снижает $\\|\\nabla f\\|^2$")
     axa.legend(fontsize=8, ncol=2)
 
     # (b) median curves F0 vs F2 vs F4, quadratic & ar, N3 sgd
@@ -161,7 +161,7 @@ def fig_calibrated(csv, diag_csv, out):
         ax.set_yscale("log")
         ax.set_xticks(x + 0.15)
         ax.set_xticklabels(models, fontsize=8)
-        ax.set_ylabel(r"шумовой пол $\|\nabla f\|^2$ (медиана)")
+        ax.set_ylabel(r"асимпт. уровень $\|\nabla f\|^2$ (медиана)")
         ax.set_title(f"{nk}  (α̂={a_used:.2f}"
                      + (f", d̂={d_used:.2f}" if nk == "N4cal" else "") + ")")
         ax.legend(fontsize=8)

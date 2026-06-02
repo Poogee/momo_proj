@@ -252,3 +252,29 @@ Living record of non-obvious engineering / methodological choices.
   cell-for-cell.
 - Fixed stray 0.38/"4/4" (crypto has 2 series × 4 seeds = 8 cells →
   "3/8 → 8/8" everywhere). Recompiled clean; tests pass.
+
+## 2026-06-02 (readability pass: no jargon/meta, integrated filter math)
+
+- **Removed all meta-commentary a reader can't know.** Deleted every
+  mention of "removed/dropped filters", the "ранее удалённые операторы"
+  note, the CNN-denoiser antipattern, and the conclusion's "из прежнего
+  пула исключены". The paper now reads as if F0–F7 is simply the set.
+- **Removed the "oracle" framing.** F3 is just described as non-causal
+  ("использует будущее"), in prose, the heatmap, and the crypto table
+  ("непр."). No "оракул"/"F3*" anywhere.
+- **Integrated the filter math at the point of declaration.** The filter
+  family is now a \description list where each F0–F7 carries its own
+  formula and one analytic property inline, instead of a bare name-list
+  followed by scattered \paragraph* derivations.
+- **Renamed the floor term everywhere**, including the matplotlib figure
+  (convergence_rescue.pdf y-axis/title) and the Block A table: "(шумовой)
+  пол" → "асимптотический уровень ||grad f||^2".
+- **Dropped the Block C table** (everything 0/8 — "nothing converges");
+  Block C is now a short prose paragraph. run_cascade_n4.py no longer
+  emits that table.
+- **Fixed the Block D table overflow** (it was bleeding into the adjacent
+  column) by wrapping the tabular in \resizebox{\columnwidth}.
+- Paper now 8 pages, compiles clean (no undefined refs, no overfull
+  boxes). NB: torch in this env currently fails to dlopen libtorch_cpu,
+  so the torch-importing filter tests can't collect — environmental, not
+  from these changes; the paper/figure/table generators don't use torch.

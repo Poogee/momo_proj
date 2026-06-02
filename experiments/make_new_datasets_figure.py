@@ -25,7 +25,7 @@ SUMM = Path("tables/new_datasets_summary.csv")
 OUT = Path("figures/new_datasets_heatmap.pdf")
 
 FILTERS = ["F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7"]
-FILT_LBL = {"F0": "$F_0$", "F1": "$F_1$", "F2": "$F_2$", "F3": "$F_3^{*}$",
+FILT_LBL = {"F0": "$F_0$", "F1": "$F_1$", "F2": "$F_2$", "F3": "$F_3$",
             "F4": "$F_4$", "F5": "$F_5$", "F6": "$F_6$", "F7": "$F_7$"}
 DOMAIN_PRETTY = {
     "financial_crypto_1h": "крипто 1ч",
@@ -90,7 +90,7 @@ def main():
            r"Ускорение сходимости Adam относительно $F_0$ "
            r"(во сколько раз меньше итераций; $>1$ — быстрее)",
            r"$\log_{10}$ ускор.")
-    ax.set_ylabel(r"фильтр ($F_3^{*}$ — непричинный, оракул)", fontsize=8)
+    ax.set_ylabel(r"фильтр ($F_3$ — не причинный)", fontsize=8)
     fig.tight_layout()
     OUT.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(OUT, bbox_inches="tight")

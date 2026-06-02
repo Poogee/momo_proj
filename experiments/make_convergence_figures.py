@@ -94,6 +94,122 @@ def fig_rescue(summ_csv, curves_npz, out):
     print(f"wrote {out}")
 
 
+def fig_gaussian_control(summ_csv, curves_npz, out):
+    """N1 Gaussian control (H4): filtering is neutral; F4 slightly worse
+    than F0/F1 on the distribution for which the mean is optimal."""
+    summ = pd.read_csv(summ_csv)
+    sns.set_theme(context="paper", style="whitegrid", font_scale=0.92)
+    fig, (axa, axb) = plt.subplots(1, 2, figsize=(12, 4.6))
+
+    a = summ[(summ.block == "A") & (summ.noise == "N1")
+             & (summ.optimizer == "sgd")]
+    models = [m for m in ["quadratic", "logistic", "ar"]
+              if m in a.model.unique()]
+    filt = [f for f in FILT_ORDER if f in a["filter"].unique()]
+    x = np.arange(len(models))
+    w = 0.8 / max(len(filt), 1)
+    for i, fk in enumerate(filt):
+        ys, lo, hi = [], [], []
+        for m in models:
+            r = a[(a.model == m) & (a["filter"] == fk)]
+            v = float(r["floor_p50_med"].iloc[0]) if not r.empty else np.nan
+            ys.append(v)
+            lo.append(v - float(r["floor_p10_med"].iloc[0]) if not r.empty else 0)
+            hi.append(float(r["floor_p90_med"].iloc[0]) - v if not r.empty else 0)
+        axa.bar(x + i * w, ys, w, yerr=[np.abs(lo), np.abs(hi)],
+                capsize=2, label=fk, error_kw=dict(lw=0.6))
+    axa.set_yscale("log")
+    axa.set_xticks(x + 0.4 - w / 2)
+    axa.set_xticklabels([MODEL_LBL.get(m, m) for m in models], rotation=15,
+                        ha="right", fontsize=9)
+    axa.set_ylabel(r"асимпт. уровень $\|\nabla f\|^2$ (медиана, p10–p90)")
+    axa.set_title("(а) Гауссов N1, SGD: фильтры почти не различаются")
+    axa.legend(fontsize=8, ncol=2)
+
+    try:
+        cur = np.load(curves_npz)
+        for m, ls in [("quadratic", "-"), ("logistic", "--")]:
+            for fk, col in [("F0", "C3"), ("F1", "C2"), ("F4", "C0")]:
+                ks = [k for k in cur.files
+                      if k.startswith(f"A|{m}|N1|sgd|{fk}|")]
+                if not ks:
+                    continue
+                arr = np.stack([cur[k] for k in ks])
+                med = np.median(arr, axis=0)
+                xx = np.linspace(0, 1, med.size)
+                axb.plot(xx, np.maximum(med, 1e-12), col, ls=ls, lw=1.4,
+                         label=f"{m[:4]} {fk}")
+        axb.set_yscale("log")
+        axb.set_xlabel("доля горизонта")
+        axb.set_ylabel(r"$\|\nabla f(x_k)\|^2$ (медиана по сидам)")
+        axb.set_title("(б) F0/F1/F4 идут вместе; выигрыша от фильтрации нет")
+        axb.legend(fontsize=8, ncol=2)
+    except Exception as e:  # pragma: no cover
+        axb.text(0.5, 0.5, f"curves n/a\n{e}", ha="center")
+
+    fig.suptitle("Гауссов контроль N1: фильтрация нейтральна, медиана F4 "
+                 "слегка проигрывает среднему (8 сидов)", fontweight="bold")
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print(f"wrote {out}")
+
+
+def fig_longmemory(summ_csv, curves_npz, out):
+    """Long-memory N2 (H2): wavelet F3 accelerates Adam/AdamW; linear
+    smoothers help little. Panel (a) median curves, (b) speed-up bars."""
+    summ = pd.read_csv(summ_csv)
+    sns.set_theme(context="paper", style="whitegrid", font_scale=0.92)
+    fig, (axa, axb) = plt.subplots(1, 2, figsize=(12, 4.6))
+
+    # (a) median ||g||^2 curves for N2 quadratic adam, F0 vs F2 vs F3
+    try:
+        cur = np.load(curves_npz)
+        for fk, col in [("F0", "C3"), ("F2", "C1"), ("F3", "C0")]:
+            ks = [k for k in cur.files
+                  if k.startswith(f"B|quadratic|N2|adam|{fk}|")]
+            if not ks:
+                continue
+            arr = np.stack([cur[k] for k in ks])
+            med = np.median(arr, axis=0)
+            xx = np.linspace(0, 1, med.size)
+            axa.plot(xx, np.maximum(med, 1e-10), col, lw=1.6, label=fk)
+        axa.set_yscale("log")
+        axa.set_xlabel("доля горизонта")
+        axa.set_ylabel(r"$\|\nabla f(x_k)\|^2$ (медиана по сидам)")
+        axa.set_title("(а) N2, квадратичная, Adam: F3 уходит вниз раньше")
+        axa.legend(fontsize=8)
+    except Exception as e:  # pragma: no cover
+        axa.text(0.5, 0.5, f"curves n/a\n{e}", ha="center")
+
+    # (b) speed-up vs F0 (t_eps) per filter, N2 quadratic, adam & adamw
+    b = summ[(summ.block == "B") & (summ.noise == "N2")
+             & (summ.model == "quadratic")]
+    filt = [f for f in FILT_ORDER if f in b["filter"].unique()]
+    x = np.arange(len(filt))
+    for i, opt in enumerate(["adam", "adamw"]):
+        ys = []
+        for fk in filt:
+            r = b[(b.optimizer == opt) & (b["filter"] == fk)]
+            ys.append(float(r["speedup_vs_F0"].iloc[0]) if not r.empty else np.nan)
+        axb.bar(x + i * 0.4, ys, 0.4, label=opt)
+    axb.axhline(1.0, color="0.4", lw=0.8, ls=":")
+    axb.set_xticks(x + 0.2)
+    axb.set_xticklabels(filt)
+    axb.set_ylabel(r"ускорение $T(\varepsilon)$ относительно F0")
+    axb.set_title("(б) F3 даёт ~11× ускорение; линейные фильтры — нет")
+    axb.legend(fontsize=8)
+
+    fig.suptitle("Долгая память N2: вейвлет F3 ускоряет адаптивные "
+                 "оптимизаторы (8 сидов)", fontweight="bold")
+    fig.tight_layout(rect=(0, 0, 1, 0.95))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out, dpi=150)
+    plt.close(fig)
+    print(f"wrote {out}")
+
+
 def fig_applied(summ_csv, out):
     s = pd.read_csv(summ_csv)
     s = s[s.optimizer == "adam"]
@@ -190,6 +306,10 @@ def main():
     if args.rescue_summary.exists():
         fig_rescue(args.rescue_summary, args.curves,
                    Path("figures/convergence_rescue.pdf"))
+        fig_gaussian_control(args.rescue_summary, args.curves,
+                             Path("figures/gaussian_control.pdf"))
+        fig_longmemory(args.rescue_summary, args.curves,
+                       Path("figures/longmemory_wavelet.pdf"))
     if args.applied_summary.exists():
         fig_applied(args.applied_summary,
                     Path("figures/applied_convergence.pdf"))

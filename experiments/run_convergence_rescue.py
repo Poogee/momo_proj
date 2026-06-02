@@ -95,7 +95,7 @@ MODELS_A = {
     "ar": dict(steps=3000, lr=2e-2, noise_scale=0.3, eps=1e-4),
 }
 OPT_A = ["sgd", "clipped_sgd", "normalized_sgd"]
-NOISE_A = ["N1", "N3", "N4"]
+NOISE_A = ["N1", "N2", "N3", "N4"]
 FILT_A = ["F0", "F1", "F2", "F3", "F4"]
 
 # block B: adaptive optimizers (Adam/AdamW). Question is whether a filter
@@ -104,6 +104,7 @@ FILT_A = ["F0", "F1", "F2", "F3", "F4"]
 MODELS_B = {
     "quadratic": dict(steps=8000, lr=5e-3, noise_scale=0.4, eps=1e-1),
     "logistic": dict(steps=8000, lr=2e-2, noise_scale=0.25, eps=5e-3),
+    "ar": dict(steps=8000, lr=2e-2, noise_scale=0.3, eps=1e-3),
 }
 OPT_B = ["adam", "adamw"]
 NOISE_B = ["N2", "N4"]

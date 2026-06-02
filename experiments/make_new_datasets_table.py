@@ -168,12 +168,55 @@ def rules():
     print(f"wrote {OUT_R}\n" + rl.to_string(index=False))
 
 
+OUT_C = Path("tables/new_datasets_crypto.tex")
+CAUSAL = {"F0", "F1", "F2", "F4", "F5", "F6", "F7"}
+
+
+def crypto_all_filters():
+    """All F0..F7 on the headline domain (crypto 1h, Adam regression):
+    a table where every filter number is visible with its numbers."""
+    s = pd.read_csv(SUMM)
+    g = s[(s["domain"] == "financial_crypto_1h")
+          & (s["optimizer"] == "adam") & (s["model"] == "regression")]
+    if g.empty:
+        OUT_C.write_text("% no crypto rows\n", encoding="utf-8")
+        return
+    rows = []
+    for fk in ["F0", "F1", "F2", "F3", "F4", "F5", "F6", "F7"]:
+        r = g[g["filter"] == fk]
+        if r.empty:
+            continue
+        r = r.iloc[0]
+        sp = float(r["speedup_vs_F0"]); fr = float(r["floor_ratio_vs_F0"])
+        conv = float(r["conv_frac"]); ho = float(r["holdout_med"])
+        nc = int(r["n_cells"])
+        mark = "" if fk in CAUSAL else "$^{*}$"
+        sp_t = (f"$\\mathbf{{{sp:.0f}\\times}}$" if sp >= 10
+                else (f"${sp:.1f}\\times$" if sp >= 1.05 else f"${sp:.2f}\\times$"))
+        fr_t = f"$\\mathbf{{{fr:.0f}\\times}}$" if fr >= 10 else f"${fr:.1f}\\times$"
+        rows.append(f"$F_{fk[1:]}${mark} & ${round(conv*nc)}/{nc}$ & {sp_t} & "
+                    f"{fr_t} & {ho:.3f}\\\\")
+    OUT_C.write_text(
+        "\\begin{table}[t]\n\\caption{Все фильтры $F_0$--$F_7$ на головном"
+        " домене (Binance крипто 1ч; 2 серии BTC/ETH $\\times$ 4 сида, Adam,"
+        " регрессия AR(5))."
+        " \\emph{сход.} --- доля сошедшихся сидов; \\emph{ускор.} и"
+        " \\emph{пол$\\downarrow$} --- относительно $F_0$; \\emph{holdout}"
+        " --- MSE на сыром будущем ($F_0{=}0.918$). $F_3^{*}$ непричинный"
+        " (оракул).}\n\\label{tab:crypto}\n\\centering\\begin{tabular}{lcccc}\n"
+        "\\toprule\nфильтр & сход. & ускор. & пол$\\downarrow$ & holdout\\\\\n"
+        "\\midrule\n" + "\n".join(rows) + "\n\\bottomrule\n"
+        "\\end{tabular}\\end{table}\n", encoding="utf-8")
+    print(f"wrote {OUT_C}")
+
+
 def main():
     if not SUMM.exists():
-        for p in (OUT_D, OUT_R):
+        for p in (OUT_D, OUT_R, OUT_C):
             p.write_text("% pending run\n", encoding="utf-8")
         return
     block_d()
+    crypto_all_filters()
     if RULES.exists():
         rules()
 

@@ -207,3 +207,28 @@ Living record of non-obvious engineering / methodological choices.
   `run_new_datasets.py` + `make_new_datasets_table.py` emit
   `new_datasets_{summary,criteria,rules}.csv` and the two LaTeX tables.
   paper recompiled clean; tests pass.
+
+## 2026-06-02 (figures/tables fixes: numbering, all filters, layout)
+
+- **Killed the last stale F10/F11 in figures & tables.** Block C
+  (`run_cascade_n4.py`) used the old keys F10/F11 and showed only 5
+  filters without subscripts — regenerated with contiguous F0–F6, proper
+  $F_n$ subscripts, and ALL seven filters. Deleted the unused
+  `tables/extended_factorial_block_d.tex` (phase-1 leftover, still had F11).
+- **New all-filters figure** (`make_new_datasets_figure.py` →
+  `figures/new_datasets_heatmap.pdf`, embedded as a full-width
+  `figure*`): two heatmaps over the full F0–F7 set × all 17 domains —
+  (a) Adam speedup vs F0, (b) gradient-floor reduction vs F0. Directly
+  answers "graphs don't show all filters". F3 marked as the non-causal
+  oracle. The heavy-tailed-returns block lights up (F2/F5 = 78×/142×);
+  everything else ≈1×.
+- **New all-filters table** (`tables/new_datasets_crypto.tex`): every
+  filter F0–F7 on the headline crypto-1h domain with conv/speedup/floor/
+  holdout, so a table also shows all eight filter numbers.
+- **Verified layout** by rasterizing the PDF (pdftoppm) and reading each
+  table/figure page: no text overlap, tables sit as top floats with text
+  below, all numbering contiguous. §II already keeps the problem
+  statement free of concrete algorithms (F/φ are abstract operators;
+  concrete F0–F7, SGD/Adam live only in §III), so the reviewer's
+  "separate task from algorithms" point is satisfied.
+- Wired the new generators into `reproduce.sh`.

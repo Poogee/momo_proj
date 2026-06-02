@@ -100,3 +100,12 @@ After iteration 18:
 | K2 | Wide 17-domain basket | `_domains()` in runner | Financial returns (daily/15m/5m/crypto-1h) + volatility \|r\| + FRED + ETTh1/h2/m1/m2 + Electricity + Traffic + NOAA + C-MAPSS + ATM + sunspots. All four (α,H) sectors populated. 6528 cells. |
 | K3 | Where-it-helps rule table | `make_new_datasets_table.py` → `tables/new_datasets_rules.{csv,tex}` | heavy-tail+short-memory → F2/F5, up to 80×; all other sectors → F0. |
 | K4 | Honest headline re-measure | `tables/new_datasets_summary.csv`, Block D + rules prose | Crypto-1h: F0 conv 0.38 → F2 78× / F5 64× (floor 127×, best). Dropped the spurious C-MAPSS −20% (baseline artifact); kept the oracle-vs-causal gap and the cascade-oversmoothing antipattern. |
+
+## Figure/table polish: numbering + all filters + layout (June 2026)
+
+| # | Title | Tangible artifact | Headline result |
+|---|-------|-------------------|-----------------|
+| L1 | Fix stale F10/F11 in Block C | `run_cascade_n4.py`, `tables/cascade_n4_block_c.tex` | Renumbered F10→F5, F11→F6; now shows all F0–F6 with $F_n$ subscripts. Deleted unused extended_factorial_block_d.tex. |
+| L2 | All-filters heatmap figure | `make_new_datasets_figure.py`, `figures/new_datasets_heatmap.pdf` (figure* in paper) | F0–F7 × 17 domains, speedup + floor panels. Shows every filter with correct numbering. |
+| L3 | All-filters crypto table | `tables/new_datasets_crypto.tex` | Every F0–F7 on crypto-1h: conv, speedup, floor↓, holdout. |
+| L4 | Layout verification | pdftoppm render of every table/figure page | No text overlap; floats placed cleanly; 9 pages, compiles with no undefined refs. |

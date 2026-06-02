@@ -67,6 +67,12 @@ python3 experiments/make_spectral_figure.py
 python3 experiments/make_tldr_figure.py
 python3 experiments/make_convergence_figures.py
 
+# June 2026 comprehensive real-data study (filters F0..F7, 17 domains)
+python3 experiments/run_new_datasets.py --n-jobs 9
+python3 experiments/make_new_datasets_table.py
+python3 experiments/make_new_datasets_figure.py
+python3 experiments/run_cascade_n4.py --n-jobs 9
+
 echo "[16/16] compile report + reviewed proposal"
 typst compile report.typ report.pdf
 typst compile project_proposal_short.typ project_proposal_short.pdf

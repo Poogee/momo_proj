@@ -51,9 +51,9 @@ FILTERS = {
     "F2":  lambda: KalmanLocalLevelFilter(process_var=1e-3, obs_var=1.0),
     "F3":  lambda: WaveletThresholdFilter(wavelet="db4", mode="soft"),
     "F4":  lambda: CausalMedianFilter(window=9),
-    "F10": lambda: CausalCascadeFilter(median_window=3,
+    "F5":  lambda: CausalCascadeFilter(median_window=3,
                                        process_var=1e-3, obs_var=1.0),
-    "F11": lambda: AdaptiveCascadeFilter(alpha_threshold=1.9,
+    "F6":  lambda: AdaptiveCascadeFilter(alpha_threshold=1.9,
                                          hurst_threshold=0.6,
                                          median_window=3,
                                          process_var=1e-3, obs_var=1.0),
@@ -133,28 +133,30 @@ def main():
         if f0.empty:
             continue
         base = float(f0["floor_p50_med"].iloc[0])
-        for fk in ["F0", "F2", "F4", "F10", "F11"]:
+        for fk in ["F0", "F1", "F2", "F3", "F4", "F5", "F6"]:
             r = grp[grp["filter"] == fk]
             if r.empty:
                 continue
             r = r.iloc[0]
             ratio = float(r["floor_ratio_vs_F0"]) if base > 0 else float("nan")
-            ratio_txt = (f"$\\mathbf{{{ratio:.1f}\\times}}$" if ratio >= 2
+            ratio_txt = (f"$\\mathbf{{{ratio:.1f}\\times}}$" if ratio >= 1.1
                          else f"${ratio:.2f}\\times$")
             rows.append(
-                f"{pretty_m.get(m,m)} & ${fk}$ & "
+                f"{pretty_m.get(m,m)} & $F_{fk[1:]}$ & "
                 f"${float(r['conv_frac'])*8:.0f}/8$ & "
                 f"${float(r['floor_p50_med']):.2e}$ & {ratio_txt}\\\\"
             )
+        rows.append("\\midrule" if m == "logistic" else "")
 
-    body = "\n".join(rows)
+    body = "\n".join(r for r in rows if r)
     Path("tables/cascade_n4_block_c.tex").write_text(
         "\\begin{table}[t]\n"
-        "\\caption{Блок~C. Смешанный режим $N_4$ ($\\hat d{=}0.4$,"
-        " $\\alpha{=}1.2$), SGD, $8$ сидов. Бинарная сходимость и пол"
-        " по сравнению с $F_0$. Новый каскад $F_{10}$ (медиана$\\to$Калман)"
-        " и адаптивный $F_{11}$ снижают пол там, где одиночные фильтры"
-        " не справляются.}\n"
+        "\\caption{Блок~C. Синтетический смешанный режим $N_4$"
+        " ($\\hat d{=}0.4$, $\\alpha{=}1.2$), SGD, $8$ сидов, \\emph{все}"
+        " фильтры $F_0$--$F_6$. Бинарная сходимость и шумовой пол"
+        " относительно $F_0$. Новый каскад $F_5$ (медиана$\\to$Калман)"
+        " даёт наибольшее снижение пола; одиночные линейные/вейвлет фильтры"
+        " идут вдоль $F_0$.}\n"
         "\\label{tab:blockC}\n"
         "\\centering\\begin{tabular}{llccc}\n"
         "\\toprule\n"

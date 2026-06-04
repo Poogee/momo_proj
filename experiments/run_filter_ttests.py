@@ -496,8 +496,6 @@ def write_tex(full: pd.DataFrame) -> None:
             f"${r.speedup:.1f}\\times$ быстрее & {fmt_ci(r.boot_ratio_lo, r.boot_ratio_hi)} & "
             f"${r.t_stat:.1f}$ & {fmt_p(r.p_one_sided)} & ${r.cohen_d:.2f}$ \\\\")
     lines.append(r"\bottomrule")
-    lines.append(r"\multicolumn{7}{l}{\footnotesize $^{\dagger}$95\%-й бутстрэп-ДИ"
-                 r" для отношения (10000 ресэмплов спаренных сидов).}\\")
     lines.append(r"\end{tabular}")
     with open(OUT_TEX, "w") as f:
         f.write("\n".join(lines) + "\n")

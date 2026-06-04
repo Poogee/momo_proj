@@ -34,6 +34,19 @@ Living record of non-obvious engineering / methodological choices.
   alpha-stable window (w>=3) has finite variance, restoring the Robbins–Monro
   finite-variance premise; linear filters can't (stable laws are closed under
   convolution). This is *why* only F4 lowers the N3 floor and why d is so large.
+- **Real data too (Exp 3).** `applied_tests()` runs the same paired test on
+  `tables/applied_convergence.csv`, pairing by (series, seed). On real 15-min
+  financial returns the Kalman filter F2 gives a 42.6x per-cell Adam speedup
+  (t=16.5, n=16, p=2.5e-11) and lifts convergence 7/16->16/16; daily 7.2x
+  (p=3.3e-6); macro-FRED and sensor-ETT controls null. So significance is not a
+  synthetic artefact — it holds on the actual series.
+- **Layout gotchas (xelatex + IEEEtran two-column):** (1) the 7-col t-test table
+  overflows the column by ~73pt — wrap the `\input` in
+  `\resizebox{\columnwidth}{!}{...}` (same trick as Block D). (2) Do NOT use
+  `\texttt`/`\path` in Russian text: polyglossia(russian) rejects the mono font
+  for lacking a Cyrillic script tag and halts the build. Write filenames in the
+  body font instead. (3) Keep display equations narrow (split H0/H1 onto two
+  lines) or they overrun the column.
 - Outputs: `tables/filter_ttests*.csv`, `tables/filter_tost_n1.csv`,
   `tables/filter_ttests.tex` (\input into the paper), `figures/filter_ttests_forest.pdf`.
   New §«Статистическая значимость» (4.5) in refactored_paper.tex; paper now 9

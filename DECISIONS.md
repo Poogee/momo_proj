@@ -2,6 +2,45 @@
 
 Living record of non-obvious engineering / methodological choices.
 
+## 2026-06-04 (statistical-significance section for the filtering claims)
+
+- Added `experiments/run_filter_ttests.py`: formal paired tests backing the
+  hypotheses, operating on the per-seed `tables/convergence_rescue.csv`
+  (8 seeds, all blocks/models/noise/optimizers) and `calibrated_synthetic.csv`.
+- **Paired, not two-sample.** Seed `s` drives the *same* noise realisation for
+  F0 and every Fk, so we test the per-seed differences. This removes the
+  between-realisation difficulty variance and is far more powerful — it is what
+  makes the effect sizes huge (paired Cohen's d = 4–11 on N3).
+- **Log scale on the floor.** `||grad f||^2` is heavy-tailed and the claim is a
+  *ratio* (Nx lower floor); `d = log10(F0) - log10(Fk)` turns the ratio into a
+  difference (what the t-test models) and stabilises variance.
+- **One-sided** (H1: filter lowers the floor / speeds up T(eps)) — we have a
+  directional prior from the theory, so two-sided would waste power.
+- Multiplicity handled with **Holm** within each metric family (192 each).
+  Backed up by **Wilcoxon**, **exact 2^8 sign-flip permutation** (p=1/256 on N3),
+  **bootstrap** ratio CIs (10k resamples, fixed seed — scripts can't use
+  Date/random), and **Stouffer** combine across the 3 tasks (N3 Z=9.2,
+  p=1.5e-20).
+- **Honesty checks, not just wins.** Gaussian N1: TOST equivalence (margin 0.30
+  log ≈ factor 2) shows F4 ≡ F0 (p_TOST<1e-3) — filtering doesn't hurt either.
+  Mixed N4: nominal effects die under Holm and the *effect size* is ~1.1x vs
+  ~100x on N3 → reframed as statistical-vs-practical significance (this is H3).
+  Power analysis: at n=8 the MDE is d≈0.98 @ power 0.8, so the design is
+  overpowered for the real effect and the N1/N4 nulls are genuine.
+- **Cross-optimizer robustness:** N3 rescue holds under Clipped-SGD (3.8–5x)
+  but vanishes under Normalized-SGD (it already strips gradient scale) — input
+  filtering and in-optimizer robustification are *substitutes* (premise ii).
+- **Theory:** added a Proposition in §Предпосылки — the sample median of an
+  alpha-stable window (w>=3) has finite variance, restoring the Robbins–Monro
+  finite-variance premise; linear filters can't (stable laws are closed under
+  convolution). This is *why* only F4 lowers the N3 floor and why d is so large.
+- Outputs: `tables/filter_ttests*.csv`, `tables/filter_tost_n1.csv`,
+  `tables/filter_ttests.tex` (\input into the paper), `figures/filter_ttests_forest.pdf`.
+  New §«Статистическая значимость» (4.5) in refactored_paper.tex; paper now 9
+  pages, compiles clean with xelatex. 10 unit tests in
+  `tests/test_filter_ttests.py` (load the script via importlib — it is not an
+  installed package). NB: xelatex is required (fontspec), not pdflatex.
+
 ## 2026-04-26
 
 - Hardware: RTX 2070 SUPER (8 GB), Ryzen 7 5800X3D, 31 GB RAM. Synthetic

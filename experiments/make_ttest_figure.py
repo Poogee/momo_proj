@@ -60,7 +60,8 @@ def main() -> None:
     axa.set_xscale("log")
     axa.set_xlabel(r"снижение пола $\|\nabla f\|^2$, F0/F4 (лог-шкала)")
     axa.set_title("(a) Тяжёлые хвосты: эффект и 95% бутстрэп-ДИ")
-    axa.legend(loc="lower right", fontsize=8)
+    axa.legend(loc="upper left", fontsize=8)
+    axa.margins(y=0.08)
 
     # (b) statistical vs practical significance: N3 vs N4 floor ratio per task
     models = ["quadratic", "logistic", "ar"]

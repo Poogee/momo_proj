@@ -335,7 +335,58 @@ def main() -> None:
 
     calibrated_tests()
     control_tests(df, full)
+    applied_tests()
     write_tex(full)
+
+
+def applied_tests() -> None:
+    """Paired tests on REAL data (Experiment 3, tables/applied_convergence.csv):
+    does a causal filter significantly speed up Adam convergence (t_conv) and
+    lower the SGD gradient floor (final_grad) on real series? Pairs by
+    (series, seed) — same data and the same optimizer init for F0 and Fk."""
+    src = "tables/applied_convergence.csv"
+    out = "tables/filter_ttests_applied.csv"
+    try:
+        d = pd.read_csv(src)
+    except FileNotFoundError:
+        print(f"(skip applied: {src} not found)")
+        return
+    rows = []
+    for dom in sorted(d.domain.unique()):
+        # Adam: speed (t_conv)
+        ga = d[(d.optimizer == "adam") & (d.domain == dom)]
+        g0 = ga[ga["filter"] == "F0"]
+        for filt in [f for f in sorted(ga["filter"].unique()) if f != "F0"]:
+            m = pd.merge(g0, ga[ga["filter"] == filt], on=["series", "seed"],
+                         suffixes=("_0", "_f"))
+            if len(m) < 3:
+                continue
+            r = paired_teps_test(m["t_conv_0"].values.astype(float),
+                                 m["t_conv_f"].values.astype(float))
+            r.update(domain=dom, filter=filt, optimizer="adam", metric="t_conv",
+                     conv_F0=float(m["conv_0"].mean()), conv_Fk=float(m["conv_f"].mean()))
+            rows.append(r)
+        # SGD: gradient floor (final_grad)
+        gs = d[(d.optimizer == "sgd") & (d.domain == dom)]
+        s0 = gs[gs["filter"] == "F0"]
+        for filt in [f for f in sorted(gs["filter"].unique()) if f != "F0"]:
+            m = pd.merge(s0, gs[gs["filter"] == filt], on=["series", "seed"],
+                         suffixes=("_0", "_f"))
+            if len(m) < 3:
+                continue
+            r = paired_log_floor_test(m["final_grad_0"].values, m["final_grad_f"].values)
+            r.update(domain=dom, filter=filt, optimizer="sgd", metric="final_grad")
+            rows.append(r)
+    ap = pd.DataFrame(rows)
+    ap.to_csv(out, index=False)
+    print(f"\nwrote {out}: {len(ap)} real-data comparisons")
+    print("=== Real data (Exp 3): F2 Kalman vs F0, Adam speedup ===")
+    for dom in ["financial_15m", "financial_daily", "macro_fred", "nonfinancial_ett"]:
+        sel = ap[(ap.domain == dom) & (ap["filter"] == "F2") & (ap.metric == "t_conv")]
+        if len(sel):
+            r = sel.iloc[0]
+            print(f"  {dom:18s} speedup={r.speedup:6.2f}x  t={r.t_stat:6.2f}  "
+                  f"p={r.p_one_sided:.2e}  conv {r.conv_F0:.2f}->{r.conv_Fk:.2f}")
 
 
 def control_tests(df: pd.DataFrame, full: pd.DataFrame) -> None:

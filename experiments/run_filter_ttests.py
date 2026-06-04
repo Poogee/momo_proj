@@ -214,7 +214,9 @@ def paired_teps_test(f0: np.ndarray, fk: np.ndarray) -> dict:
     Non-converged seeds carry a censored T(ε); we cap them at the horizon so the
     comparison is conservative (a real never-converge is treated as merely
     'slow', which understates the filter's advantage)."""
-    cap = float(np.nanmax(np.concatenate([f0, fk]))) * 2 + 1
+    both = np.concatenate([f0, fk])
+    finite = both[np.isfinite(both) & (both > 0)]
+    cap = (float(np.max(finite)) * 2 + 1) if finite.size else 1.0
     a = np.where(np.isfinite(f0) & (f0 > 0), f0, cap)
     b = np.where(np.isfinite(fk) & (fk > 0), fk, cap)
     l0 = np.log10(a)

@@ -91,6 +91,21 @@ def test_power_and_mde_consistent():
     assert tt.min_detectable_d(20, power=0.8) < tt.min_detectable_d(8, power=0.8)
 
 
+def test_paired_teps_speedup_detects_and_caps():
+    # filter converges ~10x faster every seed -> significant speedup
+    f0 = np.array([400.0, 380, 420, 410, 390, 405, 415, 395])
+    fk = np.array([40.0, 38, 42, 41, 39, 40, 41, 39])
+    r = tt.paired_teps_test(f0, fk)
+    assert r["speedup"] > 5
+    assert r["p_one_sided"] < 1e-4
+    assert r["boot_ratio_lo"] > 1.0
+    # non-converged seeds (inf / -1) are capped, not dropped -> still finite, conservative
+    f0c = np.array([np.inf, np.inf, 400.0, 410, 390, 405, 415, 395])
+    fkc = np.array([40.0, 38, 42, 41, 39, 40, 41, 39])
+    rc = tt.paired_teps_test(f0c, fkc)
+    assert np.isfinite(rc["speedup"]) and rc["speedup"] > 1
+
+
 def test_tost_equivalence_close_vs_far():
     rng = np.random.default_rng(1)
     # tiny, tight difference (|log diff| ~ 0.05 << margin 0.30) -> equivalent

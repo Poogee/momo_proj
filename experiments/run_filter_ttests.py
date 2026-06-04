@@ -39,6 +39,10 @@ SRC = "tables/convergence_rescue.csv"
 OUT_FULL = "tables/filter_ttests.csv"
 OUT_HEAD = "tables/filter_ttests_headline.csv"
 OUT_TEX = "tables/filter_ttests.tex"
+OUT_COMBINED = "tables/filter_ttests_combined.csv"
+
+N_BOOT = 10000
+BOOT_SEED = 20260604  # fixed: scripts must be reproducible (no wall-clock seed)
 
 # Which filter is the regime-matched candidate for each noise class, and on
 # which metric we expect it to win. floor = asymptotic ||∇f||² (lower better);
@@ -65,6 +69,38 @@ def holm(pvals: np.ndarray) -> np.ndarray:
         running = max(running, val)
         adj[idx] = min(running, 1.0)
     return adj
+
+
+def bootstrap_ratio_ci(f0: np.ndarray, fk: np.ndarray, n_boot: int = N_BOOT,
+                       seed: int = BOOT_SEED) -> tuple[float, float, float]:
+    """Percentile bootstrap CI for the floor ratio median(F0)/median(Fk).
+
+    Resamples the paired seeds with replacement; the ratio is a robust,
+    distribution-free effect size that does not lean on the log-normality the
+    t-test assumes. Returns (ratio_point, ci_lo, ci_hi) at 95%."""
+    rng = np.random.default_rng(seed)
+    n = f0.size
+    point = float(np.median(f0) / np.median(fk))
+    idx = rng.integers(0, n, size=(n_boot, n))
+    rb = np.median(f0[idx], axis=1) / np.median(fk[idx], axis=1)
+    lo, hi = np.percentile(rb, [2.5, 97.5])
+    return point, float(lo), float(hi)
+
+
+def stouffer(pvals: np.ndarray, weights: np.ndarray | None = None) -> tuple[float, float]:
+    """Combine independent one-sided p-values into one Z and p (Stouffer).
+
+    The three models (quadratic, logistic, AR) are independent experiments of
+    the same hypothesis; Stouffer's Z aggregates them into a single test of
+    'filtering helps somewhere across tasks'."""
+    p = np.clip(np.asarray(pvals, dtype=float), 1e-300, 1 - 1e-16)
+    z = stats.norm.isf(p)  # one-sided -> z
+    if weights is None:
+        weights = np.ones_like(z)
+    w = np.asarray(weights, dtype=float)
+    z_comb = float(np.sum(w * z) / np.sqrt(np.sum(w ** 2)))
+    p_comb = float(stats.norm.sf(z_comb))
+    return z_comb, p_comb
 
 
 def paired_log_floor_test(f0: np.ndarray, fk: np.ndarray) -> dict:
@@ -123,10 +159,17 @@ def paired_teps_test(f0: np.ndarray, fk: np.ndarray) -> dict:
     cohen_d = mean_d / sd_d if sd_d > 0 else np.inf
     tcrit = stats.t.ppf(0.975, df=n - 1)
     ci = (mean_d - tcrit * se, mean_d + tcrit * se)
+    # bootstrap CI for the median speedup ratio
+    rng = np.random.default_rng(BOOT_SEED)
+    idx = rng.integers(0, n, size=(N_BOOT, n))
+    rb = np.median(a[idx], axis=1) / np.median(b[idx], axis=1)
+    blo, bhi = np.percentile(rb, [2.5, 97.5])
     return dict(
         n=n, mean_log_diff=mean_d, speedup=float(10 ** mean_d),
         t_stat=float(t), p_one_sided=p_one, cohen_d=float(cohen_d),
         ci_lo=float(ci[0]), ci_hi=float(ci[1]), wilcoxon_p=np.nan,
+        boot_ratio=float(np.median(a) / np.median(b)),
+        boot_ratio_lo=float(blo), boot_ratio_hi=float(bhi),
     )
 
 
@@ -144,6 +187,8 @@ def main() -> None:
             if len(common) < 3:
                 continue
             res = paired_log_floor_test(common["F0"].values, common[filt].values)
+            rp, rlo, rhi = bootstrap_ratio_ci(common["F0"].values, common[filt].values)
+            res.update(boot_ratio=rp, boot_ratio_lo=rlo, boot_ratio_hi=rhi)
             res.update(block=block, model=model, noise=noise, optimizer=opt,
                        filter=filt, metric="floor")
             # binary convergence fractions for context
@@ -181,6 +226,30 @@ def main() -> None:
     head.to_csv(OUT_HEAD, index=False)
     print(f"wrote {OUT_HEAD}: {len(head)} headline comparisons")
 
+    # Combined (Stouffer) test across the three models for each headline regime
+    comb_rows = []
+    for noise, (filt, metric) in REGIME.items():
+        opt = "adam" if metric == "t_eps" else "sgd"
+        sel = full[(full.noise == noise) & (full["filter"] == filt)
+                   & (full.metric == metric) & (full.optimizer == opt)]
+        if len(sel) < 2:
+            continue
+        z, p = stouffer(sel["p_one_sided"].values)
+        comb_rows.append(dict(
+            noise=noise, filter=filt, metric=metric, optimizer=opt,
+            n_models=len(sel), stouffer_z=z, stouffer_p=p,
+            min_cohen_d=float(sel["cohen_d"].min()),
+            max_cohen_d=float(sel["cohen_d"].max()),
+        ))
+    combined = pd.DataFrame(comb_rows)
+    combined.to_csv(OUT_COMBINED, index=False)
+    print(f"wrote {OUT_COMBINED}: {len(combined)} combined tests")
+    print("\n=== Combined across models (Stouffer) ===")
+    for _, r in combined.iterrows():
+        print(f"{r.noise} {r['filter']} {r.metric:5s} ({r.n_models} tasks): "
+              f"Z={r.stouffer_z:7.2f}  p={r.stouffer_p:.2e}  "
+              f"|d|∈[{r.min_cohen_d:.2f},{r.max_cohen_d:.2f}]")
+
     # console summary
     print("\n=== Headline paired tests ===")
     for _, r in head.iterrows():
@@ -196,9 +265,9 @@ def main() -> None:
 def write_tex(full: pd.DataFrame) -> None:
     """Headline LaTeX table: N3 floor (F4) + N2 speed (F3) across models."""
     lines = []
-    lines.append(r"\begin{tabular}{llcccc}")
+    lines.append(r"\begin{tabular}{llccccc}")
     lines.append(r"\toprule")
-    lines.append(r"Режим & Задача & эффект & $t$ & $p$ (одност.) & $d$ Коэна \\")
+    lines.append(r"Режим & Задача & эффект & 95\% ДИ$^{\dagger}$ & $t$ & $p$ (одност.) & $d$ Коэна \\")
     lines.append(r"\midrule")
 
     def fmt_p(p):
@@ -206,14 +275,17 @@ def write_tex(full: pd.DataFrame) -> None:
             return f"${p:.1e}".replace("e-0", r"\!\times\!10^{-").replace("e-", r"\!\times\!10^{-") + "}$"
         return f"${p:.4f}$"
 
+    def fmt_ci(lo, hi):
+        return f"$[{lo:.0f},{hi:.0f}]$"
+
     # N3 / F4 / floor (SGD), three models
     n3 = full[(full.noise == "N3") & (full["filter"] == "F4")
               & (full.metric == "floor") & (full.optimizer == "sgd")]
     for _, r in n3.iterrows():
         lines.append(
             f"N3 (хвосты), F4 & {MODEL_RU.get(r.model, r.model)} & "
-            f"${r.floor_ratio:.0f}\\times$ ниже & ${r.t_stat:.1f}$ & "
-            f"{fmt_p(r.p_one_sided)} & ${r.cohen_d:.2f}$ \\\\")
+            f"${r.floor_ratio:.0f}\\times$ ниже & {fmt_ci(r.boot_ratio_lo, r.boot_ratio_hi)} & "
+            f"${r.t_stat:.1f}$ & {fmt_p(r.p_one_sided)} & ${r.cohen_d:.2f}$ \\\\")
     lines.append(r"\midrule")
     # N2 / F3 / t_eps (Adam)
     n2 = full[(full.noise == "N2") & (full["filter"] == "F3")
@@ -221,9 +293,11 @@ def write_tex(full: pd.DataFrame) -> None:
     for _, r in n2.iterrows():
         lines.append(
             f"N2 (память), F3 & {MODEL_RU.get(r.model, r.model)} & "
-            f"${r.speedup:.1f}\\times$ быстрее & ${r.t_stat:.1f}$ & "
-            f"{fmt_p(r.p_one_sided)} & ${r.cohen_d:.2f}$ \\\\")
+            f"${r.speedup:.1f}\\times$ быстрее & {fmt_ci(r.boot_ratio_lo, r.boot_ratio_hi)} & "
+            f"${r.t_stat:.1f}$ & {fmt_p(r.p_one_sided)} & ${r.cohen_d:.2f}$ \\\\")
     lines.append(r"\bottomrule")
+    lines.append(r"\multicolumn{7}{l}{\footnotesize $^{\dagger}$95\%-й бутстрэп-ДИ"
+                 r" для отношения (10000 ресэмплов спаренных сидов).}\\")
     lines.append(r"\end{tabular}")
     with open(OUT_TEX, "w") as f:
         f.write("\n".join(lines) + "\n")

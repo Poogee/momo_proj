@@ -259,7 +259,52 @@ def main() -> None:
               f"{eff:6.1f}×  t={r.t_stat:7.2f}  p={r.p_one_sided:.2e}  "
               f"p_holm={r.p_holm:.2e}  d={r.cohen_d:5.2f}")
 
+    calibrated_tests()
     write_tex(full)
+
+
+def calibrated_tests() -> None:
+    """Same paired floor test on the real-calibrated noise (Experiment 2,
+    alpha_hat=1.21). Confirms the synthetic finding transfers to the tail
+    index actually measured on financial data."""
+    src = "tables/calibrated_synthetic.csv"
+    out = "tables/filter_ttests_calibrated.csv"
+    try:
+        d = pd.read_csv(src)
+    except FileNotFoundError:
+        print(f"(skip calibrated: {src} not found)")
+        return
+    rows = []
+    for (model, noise), g in d.groupby(["model", "noise"]):
+        piv = g.pivot_table(index="seed", columns="filter", values="floor_p50")
+        cv = g.pivot_table(index="seed", columns="filter", values="conv100")
+        if "F0" not in piv.columns or "F4" not in piv.columns:
+            continue
+        c = piv[["F0", "F4"]].dropna()
+        if len(c) < 3:
+            continue
+        r = paired_log_floor_test(c["F0"].values, c["F4"].values)
+        rp, rlo, rhi = bootstrap_ratio_ci(c["F0"].values, c["F4"].values)
+        r.update(boot_ratio=rp, boot_ratio_lo=rlo, boot_ratio_hi=rhi,
+                 model=model, noise=noise, filter="F4", metric="floor",
+                 conv_F0=float(np.nanmean(cv["F0"].values)) if "F0" in cv else np.nan,
+                 conv_Fk=float(np.nanmean(cv["F4"].values)) if "F4" in cv else np.nan)
+        rows.append(r)
+    cal = pd.DataFrame(rows)
+    cal["p_holm"] = np.nan
+    for noise, idx in cal.groupby("noise").groups.items():
+        cal.loc[idx, "p_holm"] = holm(cal.loc[idx, "p_one_sided"].values)
+    cal.to_csv(out, index=False)
+    print(f"\nwrote {out}: {len(cal)} calibrated comparisons")
+    n3 = cal[cal.noise == "N3cal"]
+    if len(n3):
+        z, p = stouffer(n3["p_one_sided"].values)
+        print(f"=== Calibrated N3cal (alpha=1.21) F4 vs F0: "
+              f"Stouffer Z={z:.2f} p={p:.2e} ===")
+        for _, r in n3.iterrows():
+            print(f"  {r.model:10s} ratio={r.floor_ratio:6.1f}x  t={r.t_stat:6.2f}  "
+                  f"p={r.p_one_sided:.2e}  d={r.cohen_d:5.2f}  "
+                  f"conv {r.conv_F0:.2f}->{r.conv_Fk:.2f}")
 
 
 def write_tex(full: pd.DataFrame) -> None:

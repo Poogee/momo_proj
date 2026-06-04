@@ -71,6 +71,26 @@ def test_bootstrap_ratio_ci_brackets_point_and_excludes_one():
     assert again == (point, lo, hi)
 
 
+def test_exact_sign_permutation_all_positive():
+    # all-positive differences (n=8) -> minimum exact one-sided p = 1/256
+    d = np.array([0.4, 0.6, 0.3, 0.7, 0.5, 0.6, 0.8, 1.2])
+    assert tt.exact_sign_perm_p(d) == pytest.approx(1.0 / 256, abs=1e-12)
+    # symmetric differences around zero -> p ~ 0.5
+    d2 = np.array([0.5, -0.5, 0.3, -0.3, 0.2, -0.2, 0.1, -0.1])
+    assert tt.exact_sign_perm_p(d2) == pytest.approx(0.5, abs=0.06)
+
+
+def test_power_and_mde_consistent():
+    # huge observed effect -> power ~ 1
+    assert tt.achieved_power(5.0, 8) > 0.999
+    # the d that gives power 0.8 should round-trip through achieved_power
+    mde = tt.min_detectable_d(8, power=0.8)
+    assert 0.8 < mde < 1.2
+    assert tt.achieved_power(mde, 8) == pytest.approx(0.8, abs=0.02)
+    # more seeds -> smaller detectable effect
+    assert tt.min_detectable_d(20, power=0.8) < tt.min_detectable_d(8, power=0.8)
+
+
 def test_stouffer_combines_consistent_evidence():
     # three independent small one-sided p's should combine to a far smaller one
     z, p = tt.stouffer(np.array([0.01, 0.02, 0.03]))

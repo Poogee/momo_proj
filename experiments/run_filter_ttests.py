@@ -103,6 +103,55 @@ def stouffer(pvals: np.ndarray, weights: np.ndarray | None = None) -> tuple[floa
     return z_comb, p_comb
 
 
+def exact_sign_perm_p(d: np.ndarray) -> float:
+    """Exact one-sided sign-flip permutation p for paired differences.
+
+    Under H0 the sign of each paired difference is exchangeable, so the null
+    is the 2**n equiprobable sign assignments. We count the fraction whose
+    mean is >= the observed mean (one-sided, filter helps). For n<=8 this is
+    enumerated exactly (256 assignments); larger n falls back to the
+    closed-form normal-free bound via a fixed-seed Monte-Carlo draw."""
+    d = np.asarray(d, dtype=float)
+    n = d.size
+    obs = float(np.mean(d))
+    mag = np.abs(d)
+    if n <= 12:
+        ge = 0
+        total = 1 << n
+        for mask in range(total):
+            signs = np.array([1.0 if (mask >> i) & 1 else -1.0 for i in range(n)])
+            if np.mean(signs * mag) >= obs - 1e-15:
+                ge += 1
+        return ge / total
+    rng = np.random.default_rng(BOOT_SEED)
+    draws = rng.choice([-1.0, 1.0], size=(20000, n))
+    means = (draws * mag).mean(axis=1)
+    return float(np.mean(means >= obs - 1e-15))
+
+
+def achieved_power(d_obs: float, n: int, alpha: float = 0.05) -> float:
+    """Post-hoc power of the one-sided paired t-test at the observed effect."""
+    from scipy.stats import nct, t as tdist
+    ncp = d_obs * np.sqrt(n)               # noncentrality for paired t
+    tcrit = tdist.ppf(1 - alpha, df=n - 1)
+    return float(nct.sf(tcrit, df=n - 1, nc=ncp))
+
+
+def min_detectable_d(n: int, alpha: float = 0.05, power: float = 0.8) -> float:
+    """Smallest paired Cohen's d the design can detect at given power."""
+    from scipy.stats import nct, t as tdist
+    tcrit = tdist.ppf(1 - alpha, df=n - 1)
+    lo, hi = 0.0, 10.0
+    for _ in range(60):
+        mid = 0.5 * (lo + hi)
+        pw = nct.sf(tcrit, df=n - 1, nc=mid * np.sqrt(n))
+        if pw < power:
+            lo = mid
+        else:
+            hi = mid
+    return 0.5 * (lo + hi)
+
+
 def paired_log_floor_test(f0: np.ndarray, fk: np.ndarray) -> dict:
     """One-sided paired t-test on log10(floor): H1 filter floor < F0 floor."""
     eps = 1e-12
@@ -131,6 +180,8 @@ def paired_log_floor_test(f0: np.ndarray, fk: np.ndarray) -> dict:
         n=n, mean_log_diff=mean_d, floor_ratio=float(10 ** mean_d),
         t_stat=float(t), p_one_sided=p_one, cohen_d=float(cohen_d),
         ci_lo=float(ci[0]), ci_hi=float(ci[1]), wilcoxon_p=w_p,
+        perm_p=exact_sign_perm_p(d),
+        power=achieved_power(abs(cohen_d) if np.isfinite(cohen_d) else 10.0, n),
     )
 
 

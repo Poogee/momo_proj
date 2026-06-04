@@ -91,6 +91,20 @@ def test_power_and_mde_consistent():
     assert tt.min_detectable_d(20, power=0.8) < tt.min_detectable_d(8, power=0.8)
 
 
+def test_tost_equivalence_close_vs_far():
+    rng = np.random.default_rng(1)
+    # tiny, tight difference (|log diff| ~ 0.05 << margin 0.30) -> equivalent
+    f0 = np.abs(rng.normal(0.5, 0.02, 8)) + 0.3
+    fk = f0 * 10 ** rng.normal(0.05, 0.01, 8)
+    r = tt.tost_equivalence(f0, fk, margin_log=0.30)
+    assert r["equivalent"] is True
+    assert r["p_tost"] < 0.05
+    # a 100x gap is NOT equivalence (it's a huge real effect)
+    far = tt.tost_equivalence(f0, f0 / 100.0, margin_log=0.30)
+    assert far["equivalent"] is False
+    assert far["p_tost"] > 0.05
+
+
 def test_stouffer_combines_consistent_evidence():
     # three independent small one-sided p's should combine to a far smaller one
     z, p = tt.stouffer(np.array([0.01, 0.02, 0.03]))

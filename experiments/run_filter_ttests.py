@@ -152,6 +152,29 @@ def min_detectable_d(n: int, alpha: float = 0.05, power: float = 0.8) -> float:
     return 0.5 * (lo + hi)
 
 
+def tost_equivalence(f0: np.ndarray, fk: np.ndarray, margin_log: float = 0.30) -> dict:
+    """Two one-sided tests (TOST) for equivalence on log10(floor).
+
+    H0 (non-equivalence): |E[d]| >= margin; H1 (equivalence): |E[d]| < margin,
+    where d = log10(F0) - log10(Fk). margin_log=0.30 ~ a factor of 2 on the raw
+    floor: filter and baseline are 'practically the same' if neither differs by
+    more than ~2x. Returns the larger of the two one-sided p's (equivalence is
+    claimed only if it is < alpha)."""
+    d = np.log10(np.maximum(f0, 1e-12)) - np.log10(np.maximum(fk, 1e-12))
+    n = d.size
+    mean_d = float(np.mean(d))
+    se = float(np.std(d, ddof=1)) / np.sqrt(n)
+    if se == 0:
+        eq = abs(mean_d) < margin_log
+        return dict(mean_log_diff=mean_d, p_tost=0.0 if eq else 1.0, equivalent=eq)
+    t_lo = (mean_d - (-margin_log)) / se     # test E[d] > -margin
+    t_hi = (mean_d - margin_log) / se        # test E[d] <  margin
+    p_lo = float(stats.t.sf(t_lo, df=n - 1))
+    p_hi = float(stats.t.cdf(t_hi, df=n - 1))
+    p_tost = max(p_lo, p_hi)
+    return dict(mean_log_diff=mean_d, p_tost=p_tost, equivalent=p_tost < 0.05)
+
+
 def paired_log_floor_test(f0: np.ndarray, fk: np.ndarray) -> dict:
     """One-sided paired t-test on log10(floor): H1 filter floor < F0 floor."""
     eps = 1e-12
@@ -311,7 +334,35 @@ def main() -> None:
               f"p_holm={r.p_holm:.2e}  d={r.cohen_d:5.2f}")
 
     calibrated_tests()
+    control_tests(df, full)
     write_tex(full)
+
+
+def control_tests(df: pd.DataFrame, full: pd.DataFrame) -> None:
+    """Two honesty checks: (1) TOST equivalence of F4 and F0 on the Gaussian
+    control N1; (2) robustness of the N3 rescue across SGD-family optimizers."""
+    # (1) N1 equivalence
+    print("\n=== N1 Gaussian control: TOST equivalence F4 vs F0 (margin=0.30 log) ===")
+    eq_rows = []
+    n1 = df[(df.noise == "N1") & (df.optimizer == "sgd")]
+    for model, g in n1.groupby("model"):
+        piv = g.pivot_table(index="seed", columns="filter", values="floor_p50")
+        if "F0" not in piv.columns or "F4" not in piv.columns:
+            continue
+        r = tost_equivalence(piv["F0"].values, piv["F4"].values)
+        r.update(model=model, noise="N1", filter="F4")
+        eq_rows.append(r)
+        print(f"  {model:10s} log-diff={r['mean_log_diff']:+.3f}  "
+              f"p_TOST={r['p_tost']:.4f}  equivalent={r['equivalent']}")
+    pd.DataFrame(eq_rows).to_csv("tables/filter_tost_n1.csv", index=False)
+
+    # (2) N3 across optimizers
+    print("\n=== N3 rescue robustness across SGD-family optimizers (F4 floor) ===")
+    n3 = full[(full.noise == "N3") & (full["filter"] == "F4") & (full.metric == "floor")]
+    for opt, g in n3.groupby("optimizer"):
+        rmin, rmax = g.floor_ratio.min(), g.floor_ratio.max()
+        print(f"  {opt:15s} ratio∈[{rmin:.1f},{rmax:.1f}]  "
+              f"p_max={g.p_one_sided.max():.1e}  d∈[{g.cohen_d.min():.1f},{g.cohen_d.max():.1f}]")
 
 
 def calibrated_tests() -> None:

@@ -47,6 +47,9 @@ python3 experiments/run_convergence_rescue.py --n-jobs 10
 echo "[12/16] calibrated-to-real synthetic"
 python3 experiments/run_calibrated_synthetic.py --n-jobs 10
 
+echo "[12b/16] paired statistical tests for the filtering hypotheses"
+python3 experiments/run_filter_ttests.py
+
 echo "[13/16] applied causal convergence (financial / macro / non-financial)"
 python3 experiments/run_applied_convergence.py --n-jobs 10
 
@@ -66,6 +69,7 @@ python3 experiments/make_trajectory_figure.py
 python3 experiments/make_spectral_figure.py
 python3 experiments/make_tldr_figure.py
 python3 experiments/make_convergence_figures.py
+python3 experiments/make_ttest_figure.py
 
 # June 2026 comprehensive real-data study (filters F0..F7, 17 domains)
 python3 experiments/run_new_datasets.py --n-jobs 9

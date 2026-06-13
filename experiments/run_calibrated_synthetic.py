@@ -34,7 +34,12 @@ from momo.data import (
     fetch_returns,
     make_ar_forecast_task,
 )
-from momo.filters import CausalMedianFilter, IdentityFilter
+from momo.filters import (
+    CausalMedianFilter,
+    IdentityFilter,
+    SequentialCascade,
+    WaveletThresholdFilter,
+)
 from momo.metrics import (
     convergence_auc,
     divergence_slope,
@@ -105,7 +110,11 @@ def run_cell(model, noise_key, alpha, d, filt_key, seed):
     noise = (StableNoise(alpha=alpha, sigma=0.3) if noise_key == "N3cal"
              else MixedFARIMAStableNoise(d=d, alpha=alpha, sigma=0.3))
     filt = {"F0": IdentityFilter(),
-            "F4": CausalMedianFilter(window=9)}[filt_key]
+            "F4": CausalMedianFilter(window=9),
+            "F5": SequentialCascade(
+                CausalMedianFilter(window=9),
+                WaveletThresholdFilter(wavelet="db4", mode="soft",
+                                       threshold="universal"))}[filt_key]
     res = run_optimization(task=task, optimizer="sgd", noise=noise,
                            filt=filt, steps=c["steps"], lr=c["lr"],
                            seed=seed, noise_scale=c["sc"],
@@ -144,7 +153,7 @@ def main():
 
     cells = [(m, nk, a_med, d_med, f, s)
              for m in CFG for nk in ("N3cal", "N4cal")
-             for f in ("F0", "F4") for s in SEEDS]
+             for f in ("F0", "F4", "F5") for s in SEEDS]
     out = Parallel(n_jobs=args.n_jobs, verbose=3, backend="loky")(
         delayed(run_cell)(*c) for c in cells)
     df = pd.DataFrame(out)

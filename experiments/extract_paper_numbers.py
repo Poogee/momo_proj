@@ -187,4 +187,42 @@ for model in ["quadratic","logistic","ar"]:
     vals = {f:(r.floor_ratio_vs_F0 if r is not None else float('nan')) for f,r in cells.items()}
     print(f"  {model:11s} " + "  ".join(f"{f}={v:.2f}" for f,v in vals.items()))
 
+# ---- F5 cascade: N3 & N4 floor (SGD) ----
+print("\n=== [CASCADE F5 = median(F4)->wavelet(F3)] N3 & N4 floor, SGD ===")
+for noise in ["N3", "N4"]:
+    g = full[(full.noise==noise)&(full["filter"]=="F5")&(full.metric=="floor")&(full.optimizer=="sgd")]
+    print(f"  -- {noise} --")
+    for _, r in g.iterrows():
+        print(f"    {r.model:11s} ratio={r.floor_ratio:7.2f}x  t={r.t_stat:7.2f}  p={sci(r.p_one_sided)}  "
+              f"d={r.cohen_d:6.2f}  p_holm={sci(r.p_holm)}  ci=[{r.boot_ratio_lo:.0f},{r.boot_ratio_hi:.0f}]  "
+              f"conv_Fk={r.get('conv_Fk',float('nan')):.2f}")
+    if len(g):
+        z, p = tt.stouffer(g.p_one_sided.values)
+        fm = '{:.2f}' if noise == "N4" else '{:.0f}'
+        print(f"    RANGE ratio={rng(g.floor_ratio,fm)}  t={rng(g.t_stat,'{:.1f}')}  STOUFFER Z={z:.1f} p={sci(p)}")
+
+print("\n=== [tab:h3 +F5] N4 SGD floor ratios F0/Fk (descriptive) ===")
+for model in ["quadratic","logistic","ar"]:
+    vals = {}
+    for filt in ["F1","F2","F3","F4","F5"]:
+        r = srow("A",model,"N4","sgd",filt)
+        vals[filt] = r.floor_ratio_vs_F0 if r is not None else float('nan')
+    print(f"  {model:11s} " + "  ".join(f"{f}={v:.2f}" for f,v in vals.items()))
+
+print("\n=== [H1 note] N3 SGD descriptive: cascade F5 vs median F4 (floor F0/Fk) ===")
+for model in ["quadratic","logistic","ar"]:
+    f4 = srow("A",model,"N3","sgd","F4"); f5 = srow("A",model,"N3","sgd","F5")
+    if f4 is not None and f5 is not None:
+        print(f"  {model:11s} F4={f4.floor_ratio_vs_F0:.0f}x   F5(cascade)={f5.floor_ratio_vs_F0:.0f}x")
+
+calp2 = ROOT / "tables/filter_ttests_calibrated.csv"
+if calp2.exists():
+    cal2 = pd.read_csv(calp2)
+    print("\n=== [Exp2 cascade] calibrated F5 (N3cal/N4cal) ===")
+    for noise in ["N3cal","N4cal"]:
+        g = cal2[(cal2.noise==noise)&(cal2["filter"]=="F5")]
+        for _, r in g.iterrows():
+            print(f"  {noise} {r.model:11s} ratio={r.floor_ratio:.2f}x t={r.t_stat:.1f} "
+                  f"p={sci(r.p_one_sided)} d={r.cohen_d:.2f}")
+
 print("DONE")

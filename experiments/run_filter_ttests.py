@@ -433,25 +433,26 @@ def calibrated_tests() -> None:
     for (model, noise), g in d.groupby(["model", "noise"]):
         piv = g.pivot_table(index="seed", columns="filter", values="floor_p50")
         cv = g.pivot_table(index="seed", columns="filter", values="conv100")
-        if "F0" not in piv.columns or "F4" not in piv.columns:
+        if "F0" not in piv.columns:
             continue
-        c = piv[["F0", "F4"]].dropna()
-        if len(c) < 3:
-            continue
-        r = paired_log_floor_test(c["F0"].values, c["F4"].values)
-        rp, rlo, rhi = bootstrap_ratio_ci(c["F0"].values, c["F4"].values)
-        r.update(boot_ratio=rp, boot_ratio_lo=rlo, boot_ratio_hi=rhi,
-                 model=model, noise=noise, filter="F4", metric="floor",
-                 conv_F0=float(np.nanmean(cv["F0"].values)) if "F0" in cv else np.nan,
-                 conv_Fk=float(np.nanmean(cv["F4"].values)) if "F4" in cv else np.nan)
-        rows.append(r)
+        for filt in [f for f in ("F4", "F5") if f in piv.columns]:
+            c = piv[["F0", filt]].dropna()
+            if len(c) < 3:
+                continue
+            r = paired_log_floor_test(c["F0"].values, c[filt].values)
+            rp, rlo, rhi = bootstrap_ratio_ci(c["F0"].values, c[filt].values)
+            r.update(boot_ratio=rp, boot_ratio_lo=rlo, boot_ratio_hi=rhi,
+                     model=model, noise=noise, filter=filt, metric="floor",
+                     conv_F0=float(np.nanmean(cv["F0"].values)) if "F0" in cv else np.nan,
+                     conv_Fk=float(np.nanmean(cv[filt].values)) if filt in cv else np.nan)
+            rows.append(r)
     cal = pd.DataFrame(rows)
     cal["p_holm"] = np.nan
     for noise, idx in cal.groupby("noise").groups.items():
         cal.loc[idx, "p_holm"] = holm(cal.loc[idx, "p_one_sided"].values)
     cal.to_csv(out, index=False)
     print(f"\nwrote {out}: {len(cal)} calibrated comparisons")
-    n3 = cal[cal.noise == "N3cal"]
+    n3 = cal[(cal.noise == "N3cal") & (cal["filter"] == "F4")]
     if len(n3):
         z, p = stouffer(n3["p_one_sided"].values)
         print(f"=== Calibrated N3cal (alpha=1.21) F4 vs F0: "

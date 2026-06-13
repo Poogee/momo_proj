@@ -51,6 +51,7 @@ from momo.filters import (
     IdentityFilter,
     KalmanLocalLevelFilter,
     MovingAverageFilter,
+    SequentialCascade,
     WaveletThresholdFilter,
 )
 from momo.metrics import (
@@ -85,6 +86,12 @@ FILTERS = {
     "F3": lambda: WaveletThresholdFilter(wavelet="db4", mode="soft",
                                          threshold="universal"),
     "F4": lambda: CausalMedianFilter(window=9),
+    # F5 — two-stage cascade for the mixed regime N4: causal median (F4)
+    # against alpha-stable spikes, then wavelet (F3) against residual 1/f memory.
+    "F5": lambda: SequentialCascade(
+        CausalMedianFilter(window=9),
+        WaveletThresholdFilter(wavelet="db4", mode="soft", threshold="universal"),
+    ),
 }
 
 # block A: SGD-family, moderate horizon; noise_scale puts plain SGD into
@@ -96,7 +103,7 @@ MODELS_A = {
 }
 OPT_A = ["sgd", "clipped_sgd", "normalized_sgd"]
 NOISE_A = ["N1", "N2", "N3", "N4"]
-FILT_A = ["F0", "F1", "F2", "F3", "F4"]
+FILT_A = ["F0", "F1", "F2", "F3", "F4", "F5"]
 
 # block B: adaptive optimizers (Adam/AdamW). Question is whether a filter
 # still accelerates them; honest answer is regime-dependent (yes on
@@ -108,7 +115,7 @@ MODELS_B = {
 }
 OPT_B = ["adam", "adamw"]
 NOISE_B = ["N2", "N4"]
-FILT_B = ["F0", "F1", "F2", "F3", "F4"]
+FILT_B = ["F0", "F1", "F2", "F3", "F4", "F5"]
 
 
 def _make_task(model: str, seed: int):

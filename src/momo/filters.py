@@ -333,6 +333,24 @@ class CausalHybridMedianWavelet:
         return AdaptiveWaveletFilter(wavelet=self.wavelet, mode=self.mode).apply(pre)
 
 
+class SequentialCascade:
+    """Apply a list of causal filters in sequence: stage k runs on the output
+    of stage k-1. Transparent composition of existing filters (no new filter
+    math) — used to build the two-stage cascade for the mixed regime N4:
+    a robust stage against alpha-stable spikes (causal median, F4) followed by
+    a memory-oriented stage against the residual 1/f correlation (wavelet F3 or
+    Kalman F2). Every stage is itself strictly causal, so the cascade is too."""
+
+    def __init__(self, *stages):
+        self.stages = stages
+
+    def apply(self, y: np.ndarray) -> np.ndarray:
+        y = np.asarray(y, dtype=float)
+        for s in self.stages:
+            y = s.apply(y)
+        return y
+
+
 @dataclass(frozen=True)
 class AdaptiveMetaFilter:
     alpha_threshold: float = 1.9

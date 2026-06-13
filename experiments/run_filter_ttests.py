@@ -249,6 +249,163 @@ def paired_teps_test(f0: np.ndarray, fk: np.ndarray) -> dict:
     )
 
 
+def mcnemar_exact(conv_f0: np.ndarray, conv_fk: np.ndarray) -> dict:
+    """Exact McNemar test for the paired binary convergence outcome.
+
+    The right object for the 'filter rescues convergence' claim: each seed is a
+    paired Bernoulli (did F0 converge? did Fk converge?). b = pairs F0 fails /
+    Fk converges (filter rescues); c = F0 converges / Fk fails (filter breaks).
+    Under H0 each discordant pair is a fair coin, so b ~ Binom(b+c, 1/2); the
+    one-sided p (filter helps) is P(B >= b). Also reports the convergence-rate
+    gain conv(Fk) - conv(F0)."""
+    a0 = np.asarray(conv_f0).astype(int)
+    ak = np.asarray(conv_fk).astype(int)
+    b = int(np.sum((a0 == 0) & (ak == 1)))   # filter converts a failure to a win
+    c = int(np.sum((a0 == 1) & (ak == 0)))   # filter breaks a previously-OK run
+    n = b + c
+    p_one = float(stats.binom.sf(b - 1, n, 0.5)) if n > 0 else 1.0
+    return dict(b_rescue=b, c_break=c, n_discordant=n,
+                conv_F0=float(a0.mean()), conv_Fk=float(ak.mean()),
+                rate_gain=float(ak.mean() - a0.mean()), mcnemar_p=p_one)
+
+
+def two_stage_speed(t_f0, hit_f0, t_fk, hit_fk) -> dict:
+    """Two-stage speed analysis honest about censoring (a run that never reaches
+    eps has a censored, not infinite, T). Stage 1: McNemar on the eps-hit
+    indicator (does the filter make more runs reach eps at all?). Stage 2: among
+    pairs where *both* reached eps, a paired t on log10(T_F0/T_Fk) — a clean
+    speedup with no imputed/capped times. Replaces the earlier cap-at-horizon
+    t-test, which mixed 'slower' and 'never' into one number."""
+    hit0 = np.asarray(hit_f0).astype(bool)
+    hitk = np.asarray(hit_fk).astype(bool)
+    mc = mcnemar_exact(hit0, hitk)
+    both = hit0 & hitk
+    res = dict(stage1_mcnemar_p=mc["mcnemar_p"], rate_gain=mc["rate_gain"],
+               hit_F0=mc["conv_F0"], hit_Fk=mc["conv_Fk"], n_both=int(both.sum()))
+    if both.sum() >= 3:
+        d = np.log10(np.asarray(t_f0, float)[both]) - np.log10(np.asarray(t_fk, float)[both])
+        n = d.size
+        mean_d = float(d.mean()); sd = float(d.std(ddof=1))
+        se = sd / np.sqrt(n) if sd > 0 else 0.0
+        t = mean_d / se if se > 0 else (np.inf if mean_d > 0 else 0.0)
+        p = float(stats.t.sf(t, df=n - 1)) if se > 0 else (0.0 if mean_d > 0 else 1.0)
+        res.update(speedup_both=float(10 ** mean_d), t_stat=float(t),
+                   p_cond=p, cohen_d=float(mean_d / sd) if sd > 0 else np.inf)
+    return res
+
+
+def cluster_bootstrap_diff(values_f0, values_fk, clusters,
+                           n_boot: int = N_BOOT, seed: int = BOOT_SEED) -> dict:
+    """Cluster bootstrap CI for the mean paired difference (F0 - Fk), resampling
+    whole clusters (here: real series) with replacement. For holdout MSE a
+    positive mean with a CI strictly above 0 means the filter genuinely lowers
+    forecast error; a CI straddling 0 means no real accuracy gain. Clustering by
+    series is essential — seeds within one series are not independent, so a naive
+    per-row bootstrap would understate the uncertainty."""
+    f0 = np.asarray(values_f0, float)
+    fk = np.asarray(values_fk, float)
+    cl = np.asarray(clusters)
+    diff = f0 - fk                      # >0 => filter has the lower (better) MSE
+    uniq = np.unique(cl)
+    rng = np.random.default_rng(seed)
+    idx_of = {c: np.where(cl == c)[0] for c in uniq}
+    boots = np.empty(n_boot)
+    for bi in range(n_boot):
+        chosen = rng.choice(uniq, size=uniq.size, replace=True)
+        idx = np.concatenate([idx_of[c] for c in chosen])
+        boots[bi] = diff[idx].mean()
+    lo, hi = np.percentile(boots, [2.5, 97.5])
+    return dict(mean_diff=float(diff.mean()), ci_lo=float(lo), ci_hi=float(hi),
+                n_clusters=int(uniq.size), n_obs=int(diff.size),
+                improves=bool(lo > 0), worsens=bool(hi < 0))
+
+
+def mcnemar_tests(df: pd.DataFrame) -> None:
+    """McNemar convergence test for every (cell, filter) vs F0 on conv100."""
+    out = "tables/filter_mcnemar.csv"
+    rows = []
+    for (block, model, noise, opt), g in df.groupby(["block", "model", "noise", "optimizer"]):
+        piv = g.pivot_table(index="seed", columns="filter", values="conv100")
+        if "F0" not in piv.columns:
+            continue
+        for filt in [c for c in piv.columns if c != "F0"]:
+            cc = piv[["F0", filt]].dropna()
+            if len(cc) < 3:
+                continue
+            r = mcnemar_exact(cc["F0"].values, cc[filt].values)
+            r.update(block=block, model=model, noise=noise, optimizer=opt, filter=filt)
+            rows.append(r)
+    mc = pd.DataFrame(rows)
+    mc.to_csv(out, index=False)
+    print(f"\nwrote {out}: {len(mc)} McNemar comparisons")
+    print("=== N3 SGD: does the filter flip convergence? (McNemar, conv100) ===")
+    sel = mc[(mc.noise == "N3") & (mc.optimizer == "sgd") & (mc["filter"].isin(["F4", "F5"]))]
+    for _, r in sel.sort_values(["model", "filter"]).iterrows():
+        print(f"  {r.model:10s} {r['filter']}: conv {r.conv_F0:.2f}->{r.conv_Fk:.2f} "
+              f"(rescues {r.b_rescue}, breaks {r.c_break})  p={r.mcnemar_p:.2e}")
+
+
+def two_stage_speed_tests(df: pd.DataFrame) -> None:
+    """Two-stage censored speed test for the N2 acceleration claim (Adam, F3)."""
+    out = "tables/filter_speed_twostage.csv"
+    rows = []
+    for (block, model, noise, opt), g in df.groupby(["block", "model", "noise", "optimizer"]):
+        pt = g.pivot_table(index="seed", columns="filter", values="t_eps")
+        ph = g.pivot_table(index="seed", columns="filter", values="eps_hit")
+        if "F0" not in pt.columns:
+            continue
+        for filt in [c for c in pt.columns if c != "F0"]:
+            common = pt[["F0", filt]].join(ph[["F0", filt]], lsuffix="_t", rsuffix="_h").dropna()
+            if len(common) < 3:
+                continue
+            r = two_stage_speed(common["F0_t"].values, common["F0_h"].values,
+                                common[f"{filt}_t"].values, common[f"{filt}_h"].values)
+            r.update(block=block, model=model, noise=noise, optimizer=opt, filter=filt)
+            rows.append(r)
+    ts = pd.DataFrame(rows)
+    ts.to_csv(out, index=False)
+    print(f"\nwrote {out}: {len(ts)} two-stage speed comparisons")
+    print("=== N2 Adam F3: two-stage speed (stage1 eps-hit McNemar, stage2 cond. log-T) ===")
+    sel = ts[(ts.noise == "N2") & (ts.optimizer == "adam") & (ts["filter"] == "F3")]
+    for _, r in sel.iterrows():
+        sp = r.get("speedup_both", np.nan)
+        print(f"  {r.model:10s}: hit {r.hit_F0:.2f}->{r.hit_Fk:.2f} (p_mcn={r.stage1_mcnemar_p:.1e}); "
+              f"cond.speedup={sp:.2f}x p={r.get('p_cond', np.nan):.1e} (n_both={int(r.n_both)})")
+
+
+def applied_holdout_bootstrap() -> None:
+    """Cluster bootstrap on REAL-data holdout MSE (the forecast-quality question,
+    distinct from convergence speed). Clusters = series; tests whether the filter
+    actually lowers out-of-sample error rather than just converging faster."""
+    src = "tables/applied_convergence.csv"
+    out = "tables/filter_holdout_bootstrap.csv"
+    try:
+        d = pd.read_csv(src)
+    except FileNotFoundError:
+        print(f"(skip holdout bootstrap: {src} not found)")
+        return
+    rows = []
+    for (dom, opt), g in d.groupby(["domain", "optimizer"]):
+        g0 = g[g["filter"] == "F0"]
+        for filt in [f for f in sorted(g["filter"].unique()) if f != "F0"]:
+            m = pd.merge(g0, g[g["filter"] == filt], on=["series", "seed"],
+                         suffixes=("_0", "_f"))
+            if len(m) < 4:
+                continue
+            r = cluster_bootstrap_diff(m["holdout_mse_0"].values,
+                                       m["holdout_mse_f"].values, m["series"].values)
+            r.update(domain=dom, optimizer=opt, filter=filt)
+            rows.append(r)
+    hb = pd.DataFrame(rows)
+    hb.to_csv(out, index=False)
+    print(f"\nwrote {out}: {len(hb)} holdout cluster-bootstrap comparisons")
+    print("=== REAL data: does the filter lower holdout MSE? (cluster bootstrap by series) ===")
+    for _, r in hb[(hb.optimizer == "adam") & (hb["filter"] == "F2")].iterrows():
+        verdict = "IMPROVES" if r.improves else ("WORSENS" if r.worsens else "no diff")
+        print(f"  {r.domain:18s} F2: dMSE(F0-F2)={r.mean_diff:+.4f} "
+              f"CI=[{r.ci_lo:+.4f},{r.ci_hi:+.4f}] ({r.n_clusters} series) -> {verdict}")
+
+
 def main() -> None:
     df = pd.read_csv(SRC)
     rows = []
@@ -337,7 +494,10 @@ def main() -> None:
 
     calibrated_tests()
     control_tests(df, full)
+    mcnemar_tests(df)
+    two_stage_speed_tests(df)
     applied_tests()
+    applied_holdout_bootstrap()
     write_tex(full)
 
 
@@ -394,20 +554,30 @@ def applied_tests() -> None:
 def control_tests(df: pd.DataFrame, full: pd.DataFrame) -> None:
     """Two honesty checks: (1) TOST equivalence of F4 and F0 on the Gaussian
     control N1; (2) robustness of the N3 rescue across SGD-family optimizers."""
-    # (1) N1 equivalence
-    print("\n=== N1 Gaussian control: TOST equivalence F4 vs F0 (margin=0.30 log) ===")
+    # (1) Equivalence (TOST) for every regime where we claim the filter does
+    # NOT meaningfully help: the Gaussian control N1, and the mixed regime N4
+    # (including the cascade F5). TOST states 'equivalent to F0 within a factor
+    # of two' positively, instead of leaning on a non-significant p.
+    print("\n=== TOST equivalence to F0 (margin=0.30 log ~ factor 2) ===")
     eq_rows = []
-    n1 = df[(df.noise == "N1") & (df.optimizer == "sgd")]
-    for model, g in n1.groupby("model"):
-        piv = g.pivot_table(index="seed", columns="filter", values="floor_p50")
-        if "F0" not in piv.columns or "F4" not in piv.columns:
-            continue
-        r = tost_equivalence(piv["F0"].values, piv["F4"].values)
-        r.update(model=model, noise="N1", filter="F4")
-        eq_rows.append(r)
-        print(f"  {model:10s} log-diff={r['mean_log_diff']:+.3f}  "
-              f"p_TOST={r['p_tost']:.4f}  equivalent={r['equivalent']}")
-    pd.DataFrame(eq_rows).to_csv("tables/filter_tost_n1.csv", index=False)
+    for noise in ["N1", "N4"]:
+        sub = df[(df.noise == noise) & (df.optimizer == "sgd")]
+        for model, g in sub.groupby("model"):
+            piv = g.pivot_table(index="seed", columns="filter", values="floor_p50")
+            if "F0" not in piv.columns:
+                continue
+            for filt in [f for f in ("F4", "F5") if f in piv.columns]:
+                c = piv[["F0", filt]].dropna()
+                if len(c) < 3:
+                    continue
+                r = tost_equivalence(c["F0"].values, c[filt].values)
+                r.update(model=model, noise=noise, filter=filt)
+                eq_rows.append(r)
+                print(f"  {noise} {model:10s} {filt}: log-diff={r['mean_log_diff']:+.3f}  "
+                      f"p_TOST={r['p_tost']:.4f}  equivalent={r['equivalent']}")
+    eq = pd.DataFrame(eq_rows)
+    eq.to_csv("tables/filter_tost.csv", index=False)
+    eq[eq.noise == "N1"].to_csv("tables/filter_tost_n1.csv", index=False)
 
     # (2) N3 across optimizers
     print("\n=== N3 rescue robustness across SGD-family optimizers (F4 floor) ===")

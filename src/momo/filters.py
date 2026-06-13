@@ -379,8 +379,14 @@ FILTER_REGISTRY = {
     "FE": EnsembleAverageFilter,         # average ensemble
 }
 
-# learnable CNN filters live in their own module to keep torch optional
-from momo.learnable import LearnableCNNFilter, LearnableCNNFilterV2  # noqa: E402
+# learnable CNN filters live in their own module to keep torch optional: if
+# torch is unavailable the classical filters (F0-F4, F6-F11, FA, FE) still load
+# and F5/F9 stay None in the registry.
+try:
+    from momo.learnable import LearnableCNNFilter, LearnableCNNFilterV2  # noqa: E402
 
-FILTER_REGISTRY["F5"] = LearnableCNNFilter
-FILTER_REGISTRY["F9"] = LearnableCNNFilterV2
+    FILTER_REGISTRY["F5"] = LearnableCNNFilter
+    FILTER_REGISTRY["F9"] = LearnableCNNFilterV2
+except ImportError:  # pragma: no cover - torch optional
+    LearnableCNNFilter = None
+    LearnableCNNFilterV2 = None

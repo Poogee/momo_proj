@@ -47,7 +47,7 @@ from momo.noise import MixedFARIMAStableNoise, StableNoise
 from momo.optim import run_optimization
 from momo.tasks import make_logistic, make_quadratic
 
-SEEDS = list(range(8))
+SEEDS = list(range(100))
 
 
 def _diagnose() -> pd.DataFrame:

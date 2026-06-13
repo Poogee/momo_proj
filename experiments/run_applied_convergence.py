@@ -54,7 +54,7 @@ from momo.optim import run_optimization
 
 P = 5
 STEPS = 4000
-SEEDS = list(range(4))
+SEEDS = list(range(50))  # 50 seeds x smallest domain (2 series) => n>=100 paired
 
 CAUSAL_FILTERS = {
     "F0": lambda: IdentityFilter(),

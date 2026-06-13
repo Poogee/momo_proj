@@ -41,7 +41,7 @@ python3 experiments/run_stress_test.py --n-jobs 12
 echo "[10/16] convergence-rate verification"
 python3 experiments/verify_convergence_rate.py --n-jobs 12
 
-echo "[11/16] HEADLINE: convergence-rescue factorial (8 seeds, multi-metric)"
+echo "[11/16] HEADLINE: convergence-rescue factorial (100 seeds, multi-metric)"
 python3 experiments/run_convergence_rescue.py --n-jobs 10
 
 echo "[12/16] calibrated-to-real synthetic"

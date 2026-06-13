@@ -69,7 +69,7 @@ from momo.noise import (
 from momo.optim import run_optimization
 from momo.tasks import make_logistic, make_quadratic
 
-SEEDS = list(range(8))
+SEEDS = list(range(100))
 
 NOISES = {
     "N1": lambda: GaussianNoise(sigma=0.3),

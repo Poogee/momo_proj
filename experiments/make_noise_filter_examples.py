@@ -15,35 +15,31 @@ import seaborn as sns
 from scipy.ndimage import gaussian_filter1d
 
 from momo.filters import (
-    AdaptiveMetaFilter,
-    HybridMedianWaveletFilter,
-    KalmanLocalLevelFilter,
-    MedianFilter,
+    CausalMedianFilter,
+    MovingAverageFilter,
+    WaveletThresholdFilter,
 )
 from momo.noise import (
     GaussianNoise,
-    JumpDiffusionNoise,
     MixedFARIMAStableNoise,
     PinkFARIMANoise,
-    RegimeSwitchNoise,
     StableNoise,
 )
 
 
+# те же четыре класса шума, что и в экспериментах (alpha=1.2)
 NOISES = {
-    "N1 Гауссов": GaussianNoise(0.5),
-    "N2 Pink (1/f)": PinkFARIMANoise(d=0.3, sigma=0.5),
-    "N3 α-устойчивый": StableNoise(alpha=1.7, sigma=0.5),
-    "N4 Смешанный": MixedFARIMAStableNoise(d=0.25, alpha=1.7, sigma=0.5),
-    "N5 Регимный": RegimeSwitchNoise(sigma=0.5, alpha=1.6, block_length=128),
-    "N6 Jump-diffusion": JumpDiffusionNoise(sigma=0.3, jump_intensity=0.02, jump_scale=3.0),
+    "N1 Гаусс": GaussianNoise(0.5),
+    "N2 Память (1/f)": PinkFARIMANoise(d=0.4, sigma=0.5),
+    "N3 Тяжёлый хвост": StableNoise(alpha=1.2, sigma=0.5),
+    "N4 Смешанный": MixedFARIMAStableNoise(d=0.4, alpha=1.2, sigma=0.5),
 }
 
+# только реально используемые причинные фильтры, по одному на семейство
 FILTERS = {
-    "F2 Калман": KalmanLocalLevelFilter(process_var=1e-3, obs_var=1.0),
-    "F4 Медиана": MedianFilter(window=21),
-    "F7 Гибрид": HybridMedianWaveletFilter(),
-    "F8 Мета": AdaptiveMetaFilter(),
+    "F1 скольз. среднее": MovingAverageFilter(window=15),
+    "F3 вейвлет": WaveletThresholdFilter(wavelet="db4", mode="soft", threshold="universal"),
+    "F4 медиана": CausalMedianFilter(window=9),
 }
 
 
@@ -79,8 +75,15 @@ def main():
         ax_r.plot(signal, color="black", lw=1.0, ls="--", alpha=0.6, label="истинный сигнал")
         ax_r.grid(alpha=0.2)
         if row == 0:
-            ax_r.set_title("Восстановленное фильтрами F2 / F4 / F7 / F8", fontsize=10)
+            ax_r.set_title("Фильтрация: F1 скольз. / F3 вейвлет / F4 медиана", fontsize=10)
             ax_r.legend(loc="upper right", fontsize=7, frameon=False, ncol=2)
+        # робастный масштаб: тяжёлые хвосты дают выбросы в сотни раз больше
+        # сигнала; обрезаем ось, чтобы было видно, как медиана держится за
+        # сигнал, а линейный/вейвлет тянутся к (улетающим за кадр) выбросам.
+        lo, hi = np.percentile(observed, [1.0, 99.0])
+        pad = 0.6 * (hi - lo) + 1e-9
+        ax_l.set_ylim(lo - pad, hi + pad)
+        ax_r.set_ylim(lo - pad, hi + pad)
         ax_l.set_xlim(0, args.T)
         ax_r.set_xlim(0, args.T)
 

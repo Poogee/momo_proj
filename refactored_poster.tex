@@ -86,9 +86,6 @@ $\tilde y_t=\operatorname{med}(y_{t-w+1},\dots,y_t)$
 \begin{center}
 \includegraphics[width=\linewidth]{figures/noise_filter_examples.pdf}
 \end{center}
-\vspace{-0.3\baselineskip}
-{\small Медиана $F_4$ срезает редкие выбросы тяжёлого хвоста (N3, N4),
-скользящее среднее $F_1$ и вейвлет $F_3$ следуют за ними.}
 
 \columnbreak
 
@@ -112,9 +109,6 @@ $\tilde y_t=\operatorname{med}(y_{t-w+1},\dots,y_t)$
 \begin{center}
 \includegraphics[width=\linewidth]{figures/convergence_rescue.pdf}
 \end{center}
-\vspace{-0.3\baselineskip}
-{\small Без фильтра и с линейными фильтрами уровень остаётся высоким, а
-медиана $F_4$ и каскад $F_5$ опускают его на один-два порядка.}
 
 \heading{Ускоряет ли фильтр обучение при долгой памяти?}
 \ans{Да, но только вейвлет с адаптивным оптимизатором.} Под розовым шумом
@@ -154,38 +148,50 @@ N4cal его нет.}
 \end{multicols}
 
 % ===================== ИТОГОВЫЙ БЛОК ВО ВСЮ ШИРИНУ =====================
-\bigskip
+\vfill
 {\color{titlered}\hrule height 2.5pt}
 \medskip
 {\color{headblue}\Huge\bfseries Гипотезы и выводы}
-\par\medskip
+\par\bigskip
 
-\begin{minipage}[t]{0.57\textwidth}
-\begin{tabular}{@{}p{0.33\textwidth}l c@{}}
+{\large
+\begin{minipage}[t]{0.40\textwidth}
+{\color{headblue}\bfseries Проверка гипотез}\par\smallskip
+\begin{tabular}{@{}p{0.60\linewidth}l c@{}}
 \toprule
-Гипотеза & Проверка & Итог\\
+Гипотеза & Тест & \\
 \midrule
-H1~--- медиана восстанавливает сходимость (N3) & Макнемар, парный $t$ & \yes\\
-H2~--- вейвлет ускоряет обучение (N2)          & двухэтапный тест     & \yes\\
-H3~--- для смешанного N4 простого фильтра нет  & TOST (эквивалентность) & \yes\\
-H4~--- на гауссовом шуме фильтр не нужен       & TOST (эквивалентность) & \yes\\
+H1~--- медиана возвращает сходимость (N3) & Макнемар, $t$ & \yes\\
+H2~--- вейвлет ускоряет обучение (N2)      & two-stage     & \yes\\
+H3~--- для смешанного N4 фильтра нет       & TOST          & \yes\\
+H4~--- на гауссе фильтр не нужен           & TOST          & \yes\\
 \midrule
-фильтр улучшает прогноз на реальных данных     & кластерный бутстрап  & \no\\
+фильтр улучшает прогноз на реальных данных & бутстрап      & \no\\
 \bottomrule
 \end{tabular}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.40\textwidth}
-\textbf{Практическое правило выбора.} При тяжёлом хвосте берём медиану с
-SGD, при долгой памяти~--- вейвлет с Adam, при чистом гауссовом шуме фильтр
-не нужен, а для смешанного режима готового рецепта пока нет.
-\begin{itemize}\setlength{\itemsep}{0.2\baselineskip}
-\item Медиана возвращает градиенту конечную дисперсию, чего линейные фильтры не дают
+\begin{minipage}[t]{0.32\textwidth}
+{\color{headblue}\bfseries Какой фильтр выбрать}\par\smallskip
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Шум ряда & Связка\\
+\midrule
+тяжёлый хвост   & медиана $F_4$ с SGD\\
+долгая память   & вейвлет $F_3$ с Adam\\
+гауссов шум     & без фильтра, $F_0$\\
+смешанный (N4)  & рецепта пока нет\\
+\bottomrule
+\end{tabular}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.23\textwidth}
+{\color{headblue}\bfseries Главное}
+\begin{itemize}\setlength{\itemsep}{0.3\baselineskip}\setlength{\leftmargini}{1.1em}
+\item Медиана даёт градиенту конечную дисперсию
 \item Тяжёлый хвост сам по себе не повод фильтровать
-\item На реальных рядах фильтр ускоряет обучение, но не улучшает прогноз
-\item Смешанный режим N4 остаётся нерешённым
+\item Фильтр ускоряет обучение, но не прогноз
+\item Смешанный режим N4 пока не решён
 \end{itemize}
 \end{minipage}
-
-\vfill
-{\small Код и данные: \texttt{github.com/Poogee/momo\_proj}}
+}
 \end{document}

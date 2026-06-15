@@ -141,9 +141,21 @@ N4cal его нет.}
 обучение Adam в десятки раз, но точность прогноза при этом не растёт.
 Кластерный бутстрап подтверждает, что ошибка на отложенной выборке с
 фильтром и без него совпадает. Фильтр улучшает оптимизацию, а не сам прогноз.
-\begin{center}
-\includegraphics[width=\linewidth]{figures/real_speed_vs_accuracy.pdf}
+\begin{center}\small
+\begin{tabular}{@{}lccccc@{}}
+\multicolumn{6}{@{}l}{\textbf{Таблица VII. Реальные ряды, Adam}}\\[2pt]
+\toprule
+Домен & $T$\,$F_0$ & сошл.\,$F_0$ & лучш. & ускор. & holdout (л./$F_0$)\\
+\midrule
+фин.\ 15-мин  & 3030 & 109/200 & $F_2$\,59 & $51\times$ & 0.529/0.522\\
+фин.\ дневные & 640  & 322/400 & $F_2$\,60 & $11\times$ & 0.635/0.626\\
+сенсор ETT    & 44   & 100/100 & $F_1$\,20 & $2.2\times$ & 0.641/0.488\\
+макро FRED    & 20   & 300/300 & $F_0$\,20 & ---        & $F_0$ лучший\\
+\bottomrule
+\end{tabular}
 \end{center}
+{\small Ускорение большое, а ошибка на holdout с фильтром и без него
+практически одинакова.}
 
 \end{multicols}
 
@@ -171,28 +183,34 @@ H4~--- на гауссе фильтр не нужен    & TOST          & \yes\
 \bottomrule
 \end{tabular}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.34\textwidth}
-{\color{headblue}\Large\bfseries Какой фильтр выбрать}\par\medskip
-\begin{tabular}{@{}p{0.46\linewidth}p{0.46\linewidth}@{}}
+\begin{minipage}[t]{0.38\textwidth}
+{\color{headblue}\Large\bfseries Как выбрать фильтр}\par\medskip
+По обучающей части ряда оцениваем индекс хвоста $\hat\alpha$ (Маккаллох или
+Хилл) и память $\hat H$ (DFA по $|\Delta y_t|$), затем по четырём случаям:
+\par\smallskip
+\begin{tabular}{@{}ll@{}}
 \toprule
-Шум ряда & Связка\\
+Диагностика & Связка\\
 \midrule
-тяжёлый хвост  & медиана $F_4$, SGD\\
-долгая память  & вейвлет $F_3$, Adam\\
-гауссов шум    & без фильтра $F_0$\\
-смешанный (N4) & рецепта пока нет\\
+$\hat\alpha\approx2$, $\hat H\approx0.5$ & без фильтра $F_0$\\
+$\hat\alpha\approx2$, $\hat H>0.6$       & вейвлет $F_3$, Adam\\
+$\hat\alpha<1.9$, $\hat H\approx0.5$     & медиана $F_4$, SGD\\
+$\hat\alpha<1.9$, $\hat H>0.6$           & Калман $F_2$, Adam\\
 \bottomrule
 \end{tabular}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.28\textwidth}
-{\color{headblue}\Large\bfseries Как выбрать на своих данных}\par\medskip
-\begin{enumerate}\setlength{\itemsep}{0.45\baselineskip}\setlength{\leftmargini}{1.5em}
-\item На обучающей части ряда оцениваем индекс хвоста $\hat\alpha$
-(Маккаллох или Хилл) и показатель Хёрста $\hat H$ (DFA по $|\Delta y_t|$)
-\item Определяем режим: $\hat\alpha<1.9$~--- тяжёлый хвост,
-$\hat H>0.6$~--- долгая память
-\item Берём связку (фильтр, оптимизатор) из таблицы слева
-\end{enumerate}
+\begin{minipage}[t]{0.24\textwidth}
+{\color{headblue}\Large\bfseries Какой фильтр выбрать}\par\medskip
+\begin{tabular}{@{}ll@{}}
+\toprule
+Шум ряда & Связка\\
+\midrule
+тяжёлый хвост  & $F_4$, SGD\\
+долгая память  & $F_3$, Adam\\
+гауссов шум    & $F_0$\\
+смешанный (N4) & $F_2$, Adam\\
+\bottomrule
+\end{tabular}
 \end{minipage}
 }
 \end{document}

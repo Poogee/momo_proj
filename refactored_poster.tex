@@ -151,9 +151,17 @@ N4cal его нет.}
 \includegraphics[width=\linewidth]{figures/real_speed_vs_accuracy.pdf}
 \end{center}
 
-\heading{Гипотезы и выводы}
-\begin{center}\small
-\begin{tabular}{@{}p{0.50\linewidth}l c@{}}
+\end{multicols}
+
+% ===================== ИТОГОВЫЙ БЛОК ВО ВСЮ ШИРИНУ =====================
+\bigskip
+{\color{titlered}\hrule height 2.5pt}
+\medskip
+{\color{headblue}\Huge\bfseries Гипотезы и выводы}
+\par\medskip
+
+\begin{minipage}[t]{0.57\textwidth}
+\begin{tabular}{@{}p{0.33\textwidth}l c@{}}
 \toprule
 Гипотеза & Проверка & Итог\\
 \midrule
@@ -165,21 +173,19 @@ H4~--- на гауссовом шуме фильтр не нужен       & TOS
 фильтр улучшает прогноз на реальных данных     & кластерный бутстрап  & \no\\
 \bottomrule
 \end{tabular}
-\end{center}
-
-Практическое правило выбора простое. При тяжёлом хвосте берём медиану с SGD,
-при долгой памяти~--- вейвлет с Adam, при чистом гауссовом шуме фильтр не
-нужен, а для смешанного режима готового рецепта пока нет.
+\end{minipage}\hfill
+\begin{minipage}[t]{0.40\textwidth}
+\textbf{Практическое правило выбора.} При тяжёлом хвосте берём медиану с
+SGD, при долгой памяти~--- вейвлет с Adam, при чистом гауссовом шуме фильтр
+не нужен, а для смешанного режима готового рецепта пока нет.
 \begin{itemize}\setlength{\itemsep}{0.2\baselineskip}
-\item Медиана возвращает градиенту конечную дисперсию, чего линейные фильтры
-не дают
+\item Медиана возвращает градиенту конечную дисперсию, чего линейные фильтры не дают
 \item Тяжёлый хвост сам по себе не повод фильтровать
 \item На реальных рядах фильтр ускоряет обучение, но не улучшает прогноз
 \item Смешанный режим N4 остаётся нерешённым
 \end{itemize}
+\end{minipage}
 
 \vfill
 {\small Код и данные: \texttt{github.com/Poogee/momo\_proj}}
-
-\end{multicols}
 \end{document}

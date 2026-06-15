@@ -167,10 +167,10 @@ N4cal его нет.}
 \par\bigskip
 
 {\large
-\renewcommand{\arraystretch}{1.35}
-\begin{minipage}[t]{0.34\textwidth}
+\renewcommand{\arraystretch}{1.7}
+\begin{minipage}[t]{0.33\textwidth}
 {\color{headblue}\Large\bfseries Проверка гипотез}\par\medskip
-\begin{tabular}{@{}p{0.60\linewidth}l c@{}}
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}p{0.52\linewidth}lc}
 \toprule
 Гипотеза & Тест & Итог\\
 \midrule
@@ -181,11 +181,11 @@ H4~--- на гауссе фильтр не нужен    & TOST          & \yes\
 \midrule
 фильтр улучшает прогноз            & бутстрап      & \no\\
 \bottomrule
-\end{tabular}
+\end{tabular*}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.38\textwidth}
+\begin{minipage}[t]{0.36\textwidth}
 {\color{headblue}\Large\bfseries Тип шума на реальных данных}\par\medskip
-\begin{tabular}{@{}ll@{}}
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}ll}
 \toprule
 Диагностика & Шум\\
 \midrule
@@ -194,14 +194,14 @@ $\hat\alpha\approx2$, $\hat H>0.6$       & N2, долгая память\\
 $\hat\alpha<1.9$, $\hat H\approx0.5$     & N3, тяжёлый хвост\\
 $\hat\alpha<1.9$, $\hat H>0.6$           & N4, смешанный\\
 \bottomrule
-\end{tabular}
+\end{tabular*}
 \par\medskip
 {\small Считаем по обучающей части: $\hat\alpha$~--- метод Маккаллоха или
 Хилла, $\hat H$~--- DFA по $|\Delta y_t|$.}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.24\textwidth}
+\begin{minipage}[t]{0.28\textwidth}
 {\color{headblue}\Large\bfseries Какой фильтр выбрать}\par\medskip
-\begin{tabular}{@{}ll@{}}
+\begin{tabular*}{\linewidth}{@{\extracolsep{\fill}}ll}
 \toprule
 Шум ряда & Связка\\
 \midrule
@@ -210,7 +210,7 @@ $\hat\alpha<1.9$, $\hat H>0.6$           & N4, смешанный\\
 гауссов шум    & $F_0$\\
 смешанный (N4) & $F_2$, Adam\\
 \bottomrule
-\end{tabular}
+\end{tabular*}
 \end{minipage}
 }
 \end{document}

@@ -85,7 +85,7 @@ def fig_rescue(summ_csv, curves_npz, out):
     except Exception as e:  # pragma: no cover
         axb.text(0.5, 0.5, f"curves n/a\n{e}", ha="center")
 
-    fig.suptitle("Предфильтрация спасает сходимость SGD при тяжёлохвостовом "
+    fig.suptitle("Предфильтрация восстанавливает сходимость SGD при тяжёлохвостовом "
                  "градиентном шуме (100 сидов)", fontweight="bold")
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     out.parent.mkdir(parents=True, exist_ok=True)

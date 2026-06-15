@@ -1,11 +1,16 @@
 \documentclass[a0,landscape]{a0poster}
-% Постер по проекту: современный панельный стиль (tcolorbox), много
-% визуализаций. Содержание согласовано с refactored_paper.tex:
-% фильтры F0–F5 (включая каскад F5), шумы N1–N4, 100 сидов, новые
-% стат-критерии (Макнемар, two-stage, TOST, кластерный бутстрап).
+% Постер по проекту: чистый безрамочный 3-колоночный стиль
+% (красный заголовок, синие заголовки секций с линейкой, белый фон)
+% в духе шаблона optimization-class poster. Содержание согласовано
+% с финальной refactored_paper.tex: фильтры F0–F5 (включая каскад F5),
+% шумы N1–N4, 100 сидов, стат-критерии (Макнемар, two-stage, TOST,
+% кластерный бутстрап), блочный дизайн.
 
 \usepackage{fontspec}
+% Кириллицу XeLaTeX берёт прямо из шрифта; polyglossia не используем, т.к.
+% масштабирование шрифтов в a0poster (a0size) ломает её проверку OpenType.
 \setmainfont{PT Sans}
+% мягкие переносы недоступны без polyglossia — снимаем переполнения строк
 \tolerance=2000
 \emergencystretch=3em
 \sloppy
@@ -16,162 +21,114 @@
 \usepackage{booktabs}
 \usepackage{array}
 \usepackage{xcolor}
-\usepackage{pifont}      % \ding{51} ✓, \ding{55} ✗
-\usepackage[most]{tcolorbox}
-\tcbuselibrary{skins}
 
-% ---- палитра ----
 \definecolor{titlered}{RGB}{170,30,30}
 \definecolor{headblue}{RGB}{0,71,133}
-\definecolor{deepblue}{RGB}{12,45,85}
-\definecolor{accent}{RGB}{222,140,32}
-\definecolor{softbg}{RGB}{244,247,251}
-\definecolor{tinttitle}{RGB}{0,71,133}
-\definecolor{tintbody}{RGB}{249,251,253}
-\definecolor{okgreen}{RGB}{30,130,60}
 
-\pagecolor{softbg}
-
-\setlength{\columnsep}{2.5cm}
+\setlength{\columnsep}{3cm}
 \setlength{\parindent}{0pt}
-\setlength{\parskip}{0.38\baselineskip}
+\setlength{\parskip}{0.7\baselineskip}
 
-\newcommand{\yes}{{\color{okgreen}\bfseries\ding{51}}}
-\newcommand{\no}{{\color{titlered}\bfseries\ding{55}}}
+% синий заголовок секции с линейкой — как в шаблоне
+\newcommand{\heading}[1]{\bigskip{\color{headblue}\LARGE\bfseries #1}\par
+  \vspace{0.2\baselineskip}{\color{headblue}\hrule height 1.4pt}\medskip}
+
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\norm}[1]{\lVert#1\rVert}
 \DeclareMathOperator{\med}{med}
-
-% ---- стиль панели-секции ----
-\tcbset{
-  panel/.style={
-    enhanced, breakable=false,
-    colback=tintbody, colframe=headblue, boxrule=1.1pt, arc=4mm,
-    left=5mm, right=5mm, top=3mm, bottom=3mm,
-    title={#1}, fonttitle=\bfseries\LARGE, coltitle=white,
-    colbacktitle=tinttitle, toptitle=2mm, bottomtitle=2mm, lefttitle=5mm,
-    drop fuzzy shadow=black!30,
-    before skip=0pt, after skip=5mm,
-  },
-  hpanel/.style={        % highlight (главный результат)
-    enhanced, breakable=false,
-    colback=accent!10, colframe=accent, boxrule=1.6pt, arc=4mm,
-    left=5mm, right=5mm, top=3mm, bottom=3mm,
-    title={#1}, fonttitle=\bfseries\LARGE, coltitle=white,
-    colbacktitle=accent, toptitle=2mm, bottomtitle=2mm, lefttitle=5mm,
-    drop fuzzy shadow=black!40,
-    before skip=0pt, after skip=5mm,
-  },
-}
-\newtcolorbox{panel}[1]{panel={#1}}
-\newtcolorbox{hpanel}[1]{hpanel={#1}}
-
-\newcommand{\fig}[2]{\begin{center}\includegraphics[width=#2\linewidth]{#1}\end{center}}
 
 \begin{document}
 
 % ===================== ШАПКА =====================
-\begin{tcolorbox}[enhanced, colback=deepblue, colframe=deepblue, arc=6mm,
-  boxrule=0pt, left=10mm,right=10mm,top=7mm,bottom=7mm,
-  drop fuzzy shadow=black!45, before skip=0pt, after skip=8mm,
-  interior style={left color=deepblue, right color=headblue}]
-\centering
-{\color{white}\veryHuge\bfseries Beyond Gaussian Noise\par}
-\smallskip
-{\color{white!92}\LARGE Сходимость стохастических оптимизаторов под
-коррелированным и тяжёлохвостовым градиентным шумом\par}
+{\color{titlered}\veryHuge\bfseries
+Beyond Gaussian Noise: Convergence of Stochastic Optimizers\\
+under Correlated and Heavy-Tailed Financial Gradient Noise\par}
 \medskip
-{\color{accent!85!white}\rule{0.92\textwidth}{2.5pt}}\par
-\medskip
-{\color{white}\LARGE Д.~Кортунов \quad В.~Пастушенко \quad А.~Дубовицкий
-\quad А.~Шадрин \qquad\textbf{·}\qquad \textit{НИУ ВШЭ, Москва}\par}
+{\Large Д.~Кортунов \quad В.~Пастушенко \quad А.~Дубовицкий \quad А.~Шадрин\par}
 \smallskip
-{\color{accent!90!white}\Large\bfseries Причинная медиана возвращает SGD
-конечную дисперсию градиента и спасает сходимость при $\alpha$-устойчивом
-шуме; на реальных рядах фильтр ускоряет оптимизацию, но не улучшает прогноз.}
-\end{tcolorbox}
+{\Large\textit{НИУ ВШЭ, Москва}\par}
+\medskip
+{\color{titlered}\hrule height 3pt}
+\bigskip
 
 \begin{multicols}{3}
 
-% ======================= КОЛОНКА 1 =======================
-\begin{panel}{Задача}
-Наблюдаемый ряд~--- сигнал плюс шум, $y_t=s_t+\xi_t$. Перед обучением весь
-ряд проходит через причинный фильтр $F$: $\tilde y=F(y)$, и из сглаженного
-ряда строятся признаки. Прогнозную модель (AR($p$)) учим методом первого
-порядка
+% ----------------------- КОЛОНКА 1 -----------------------
+\heading{Постановка}
+Наблюдаемый ряд~--- сигнал плюс шум, $y_t = s_t + \xi_t$. Перед обучением
+весь ряд проходит через причинный фильтр $F$: $\tilde y = F(y)$, и уже
+из сглаженного ряда строятся признаки $\tilde\phi_t$. Обучаем прогнозную
+модель (AR($p$)) минимизацией риска методом первого порядка
 \[
-  x_{k+1}=x_k-\eta\,\phi(g_k),\qquad
-  g_k=\tfrac1{|\mathcal B_k|}\!\sum_{t\in\mathcal B_k}\!
-      \nabla_x\ell(x_k,\tilde\phi_t,c_t).
+  g_k=\tfrac1{|\mathcal B_k|}\!\!\sum_{t\in\mathcal B_k}\!\!
+      \nabla_x\ell(x_k,\tilde\phi_t,c_t),\qquad
+  x_{k+1}=x_k-\eta\,\phi(g_k).
 \]
-Признаки и таргет~--- из $\tilde y$; качество меряем на holdout по
-\emph{исходному} будущему $y_t$. На финансовых рядах шум тяжёлохвостый
-($\alpha$-устойчивый, $\alpha<2$, бесконечная дисперсия) и долгопамятный~---
-базовые предпосылки сходимости SGD нарушены.
+Признаки и обучающий таргет~--- из ряда $\tilde y$; качество же
+оценивается на holdout по исходному будущему значению $y_t$.
+
+На финансовых рядах шум тяжёлохвостый ($\alpha$-устойчивый, $\alpha<2$,
+бесконечная дисперсия) и долгопамятный. Тогда базовые предпосылки теории
+сходимости SGD нарушаются.
 
 \medskip
-\textbf{Вопрос.} Как тройка (шум)~$\times$~(фильтр)~$\times$~(оптимизатор)
-влияет на сходимость, и можно ли по диагностике ряда заранее выбрать
-удачную пару?
-\end{panel}
+Вопрос. Как тройка
+(тип шума)~$\times$~(фильтр)~$\times$~(оптимизатор) влияет на сходимость,
+и можно ли по диагностике ряда заранее выбрать удачную пару?
 
-\begin{panel}{Шумы и фильтрация: как это выглядит}
-\fig{figures/noise_filter_examples.pdf}{0.52}
-{\small Сверху вниз~--- четыре класса шума; причинная медиана срезает
-$\alpha$-устойчивые выбросы, линейные фильтры~--- нет.}
-
-\medskip
-\begin{minipage}[t]{0.48\linewidth}\small
+\heading{Четыре класса шума}
 \begin{tabular}{@{}ll@{}}
 \toprule
-\multicolumn{2}{@{}l}{\textbf{Шумы}}\\
-\midrule
-N1 & гаусс (контроль)\\
-N2 & $1/f$ (память)\\
-N3 & $\alpha$-устойч.\ (хвост)\\
-N4 & смешанный\\
+N1 & гауссов белый (контроль)\\
+N2 & розовый $1/f$ (долгая память)\\
+N3 & $\alpha$-устойчивый (тяжёлый хвост)\\
+N4 & смешанный (хвост $\cap$ память)\\
 \bottomrule
 \end{tabular}
-\end{minipage}\hfill
-\begin{minipage}[t]{0.48\linewidth}\small
+
+\heading{Фильтры $F_0$–$F_5$ (все причинные)}
 \begin{tabular}{@{}ll@{}}
 \toprule
-\multicolumn{2}{@{}l}{\textbf{Фильтры (причинные)}}\\
-\midrule
-$F_0$ & без фильтра\\
-$F_1$ & скольз.\ среднее\\
-$F_2$ & Калман\\
-$F_3$ & вейвлет-порог\\
-$F_4$ & медиана\\
-$F_5$ & \textbf{каскад} $F_4{\to}F_3$\\
+$F_0$ & без фильтрации (контроль)\\
+$F_1$ & скользящее среднее (линейный)\\
+$F_2$ & фильтр Калмана (линейный)\\
+$F_3$ & вейвлет-порог (Добеши)\\
+$F_4$ & причинная медиана (робастный)\\
+$F_5$ & каскад $F_4{\to}F_3$ (для N4)\\
 \bottomrule
-\end{tabular}
-\end{minipage}
+\end{tabular}\par
+\smallskip
+Оптимизаторы: SGD, Clipped-SGD, Normalized-SGD, Adam, AdamW.
+Дизайн~--- \textbf{блочный} (не полный перебор): Блок~A (SGD-семейство, все
+шумы N1--N4; спасение сходимости) и Блок~B (Adam/AdamW, N2/N4; скорость).
+Шумы N2 и N4 проходят оба блока. По \textbf{100} независимых запусков
+на ячейку.
 
-\medskip
-\textbf{Дизайн~--- блочный} (не полный перебор). \textbf{Блок A}: SGD-семейство
-(SGD, Clipped-, Normalized-SGD) на всех шумах N1--N4~--- спасение
-\emph{сходимости}. \textbf{Блок B}: Adam/AdamW на N2/N4~--- \emph{скорость}.
-По \textbf{100} независимых запусков на ячейку.
-\end{panel}
-
-% ======================= КОЛОНКА 2 =======================
-\begin{panel}{Теория и гипотезы}
-\emph{Гипотезы выведены из теории и зафиксированы до экспериментов.}
+% ----------------------- КОЛОНКА 2 -----------------------
+\heading{Предпосылки и гипотезы}
+Гипотезы выведены из теории и зафиксированы \emph{до} экспериментов.
 При $\alpha<2$ второй момент градиентного шума бесконечен~--- редкие
-гигантские шаги не дают SGD стабилизироваться. Хвост медианы окна $w$
-имеет порядок $\alpha\lceil w/2\rceil$: при $w{=}9$ конечная дисперсия уже
-при $\alpha>0.4$. Линейные фильтры $\alpha$-устойчивость не убирают.
-\begin{itemize}\setlength{\itemsep}{0.15\baselineskip}\small
-\item \textbf{H1} (N3): медиана $F_4$ переводит SGD в сходящийся режим.
-\item \textbf{H2} (N2): вейвлет $F_3$+Adam ускоряет сильнее линейных.
-\item \textbf{H3} (N4): простого фильтра, снижающего пол, нет.
-\item \textbf{H4} (N1): фильтрация нейтральна, медиана чуть хуже среднего.
+гигантские шаги не дают SGD стабилизироваться. Хвост выборочной медианы
+окна $w$ имеет порядок $\alpha\lceil w/2\rceil$: при $w{=}9$ конечная
+дисперсия уже при $\alpha>0.4$. Линейные фильтры $\alpha$-устойчивость не
+убирают; долгую память лечит спектральное разреживание (вейвлет) или
+адаптивный шаг (Adam).
+\begin{itemize}\setlength{\itemsep}{0.2\baselineskip}
+\item Гипотеза 1 (N3): медиана $F_4$ переводит SGD в сходящийся
+      режим; линейные фильтры~--- нет.
+\item Гипотеза 2 (N2): для Adam/AdamW вейвлет $F_3$ ускоряет
+      сходимость сильнее линейных фильтров.
+\item Гипотеза 3 (N4): ни один простой фильтр не снижает
+      асимптотический уровень $\|\nabla f\|^2$.
+\item Гипотеза 4 (N1): фильтрация нейтральна, медиана чуть хуже
+      среднего.
 \end{itemize}
-\end{panel}
 
-\begin{hpanel}{Главный результат: спасение сходимости (N3, $\alpha{=}1.2$, SGD)}
-Без фильтра и с линейными $F_1$–$F_3$ SGD почти не сходится; причинная
-медиана $F_4$~--- \textbf{100/100}, асимптотический уровень
-$\|\nabla f\|^2$ \textbf{ниже в 22–161$\boldsymbol\times$}.
+\heading{Эксперимент 1: тяжёлые хвосты ($\alpha{=}1.2$, SGD)}
+Без фильтра и с линейными $F_1,F_2,F_3$~--- почти нет сходимостей; причинная
+медиана $F_4$~--- $100/100$, асимптотический уровень $\|\nabla f\|^2$
+ниже в $22$–$161\times$.
 \begin{center}\small
 \begin{tabular}{@{}lcccc@{}}
 \toprule
@@ -183,95 +140,97 @@ $\|\nabla f\|^2$ \textbf{ниже в 22–161$\boldsymbol\times$}.
 \bottomrule
 \end{tabular}
 \end{center}
-\fig{figures/convergence_rescue.pdf}{0.74}
-{\small $F_0$ и линейные фильтры застревают; $F_4$/$F_5$ уходят на
-1–2~порядка ниже (6 фильтров, 100 сидов).}
-\end{hpanel}
+\begin{center}
+\includegraphics[width=\linewidth]{figures/convergence_rescue.pdf}
+\end{center}
+\vspace{-0.3\baselineskip}
+{\small $F_0$ и линейные фильтры застревают на асимптотическом уровне;
+$F_4$/$F_5$ уходят вниз на 1--2~порядка (6 фильтров, 100 сидов).}
 
-\begin{panel}{Строгие критерии: размеры эффекта и ДИ}
-Парный односторонний $t$ на $\log_{10}\|\nabla f\|^2$: $d$~Коэна
+\smallskip
+Строгие критерии: парный $t$ на $\log_{10}\|\nabla f\|^2$~--- $d$~Коэна
 $4.8$–$7.7$, $p_{\text{Холм}}{<}10^{-60}$, Стоуффер $Z{=}32.8$. Бинарную
-сходимость проверяем точным критерием \textbf{Макнемара}
-($0{\to}100/100$, $p{\approx}8{\times}10^{-31}$).
-\fig{figures/filter_ttests_forest.pdf}{0.74}
-{\small Лесовидная диаграмма: 95\% бутстрэп-интервалы снижения пола
-целиком правее $\times1$ и на синтетике ($\alpha{=}1.2$), и на калиброванном
-шуме ($\alpha{=}1.21$).}
-\end{panel}
+сходимость проверяет точный критерий \textbf{Макнемара}
+($0{\to}100/100$, $p{\approx}8{\times}10^{-31}$). Спасение устойчиво и под
+Clipped-SGD ($3.2$–$5.2\times$).
 
-% ======================= КОЛОНКА 3 =======================
-\begin{panel}{Долгая память (N2) и гауссов контроль (N1)}
-\textbf{N2, Adam:} вейвлет $F_3$ ускоряет в \textbf{4.9$\times$}
-($T_\varepsilon$ $814{\to}165$), Калман~--- $1.9\times$; линейные, медиана
-и даже каскад $F_5$ ($0.9\times$)~--- нет.
-\fig{figures/longmemory_wavelet.pdf}{0.70}
-\fig{figures/gaussian_control.pdf}{0.68}
-\textbf{N1:} фильтрация нейтральна, $F_4$ чуть хуже среднего (TOST:
-$F_4\equiv F_0$ в пределах фактора~2).
-\end{panel}
+% ----------------------- КОЛОНКА 3 -----------------------
+\heading{Долгая память, смешанный шум, гауссов контроль}
+N2, Adam: вейвлет $F_3$ ускоряет сходимость в
+$4.9\times$ ($T_\varepsilon$ $814{\to}165$), Калман $F_2$~---
+$1.9\times$; линейные, медиана и даже каскад $F_5$ ($0.9\times$)~--- нет.
+\begin{center}
+\includegraphics[width=\linewidth]{figures/longmemory_wavelet.pdf}
+\end{center}
+\vspace{-0.2\baselineskip}
+N4: отношение асимптотических уровней $F_0/F_k\approx1$ для всех простых
+фильтров \emph{и} двухстадийного каскада $F_5$~--- мешанный режим не
+закрывается (гипотеза~3). N1: фильтрация нейтральна, $F_4$ слегка
+проигрывает среднему (гипотеза~4); TOST подтверждает эквивалентность $F_0$:
+\begin{center}
+\includegraphics[width=\linewidth]{figures/gaussian_control.pdf}
+\end{center}
 
-\begin{panel}{Каскад $F_5$ для смешанного N4}
+\heading{Каскад $F_5$ для N4}
 Двухстадийный каскад $F_5=F_4{\to}F_3$ (медиана против выбросов, затем
-вейвлет против $1/f$-памяти) прогнан как полноправный фильтр.
-\textbf{На N3} каскад даже \emph{сильнее} простой медианы ($136$/$168$/$36\times$).
-\textbf{Но N4 он не закрывает}: отношение уровней $1.0$–$1.2$, как и у
-простых фильтров (TOST: $F_4,F_5\equiv F_0$). Долгая память размазывает
-выброс в кластер шире окна медианы.
-\fig{figures/calibrated_synthetic.pdf}{0.70}
-{\small Калибровка под реальные хвосты ($\hat\alpha{=}1.21$): на N3cal
-разрыв $F_0/F_k$ сохраняется (91–129$\times$), на N4cal~--- нет.}
-\end{panel}
+вейвлет против $1/f$-памяти) прогнан как полноправный фильтр. На N3 он даже
+\emph{сильнее} простой медианы ($136$/$168$/$36\times$), но \textbf{N4 не
+закрывает} (отношение уровней $1.0$–$1.2$, TOST: $F_4,F_5\equiv F_0$).
 
-\begin{hpanel}{Реальные ряды: скорость $\boldsymbol\ne$ точность}
-Фильтр Калмана $F_2$ резко ускоряет сходимость Adam, доля сошедшихся ячеек
-растёт. Но \textbf{кластерный бутстрап} по holdout-MSE (ресэмпл рядов):
-прогноз \textbf{не} улучшается~--- наоборот, ДИ \emph{выше нуля} на всех
-доменах.
+\heading{Эксперименты 2–3: калибровка и реальные ряды}
+Медиана хвостов по корзине реальных инструментов: $\hat\alpha\!\approx\!1.21$,
+$\hat d\!\approx\!0.29$. На калиброванной синтетике спасение сходимости
+сохраняется ($91$–$129\times$):
+\begin{center}
+\includegraphics[width=\linewidth]{figures/calibrated_synthetic.pdf}
+\end{center}
+На реальных рядах (Adam) фильтр Калмана $F_2$ резко ускоряет сходимость:
 \begin{center}\small
-\begin{tabular}{@{}lccc@{}}
+\begin{tabular}{@{}lcccc@{}}
 \toprule
-Домен & сошл.\,$F_0$ & ускор.\ ($F_2$) & holdout (лучш./$F_0$)\\
+Домен & сошл.\,$F_0$ & лучший & ускор. & holdout (лучш./$F_0$)\\
 \midrule
-фин.\ 15-мин  & 109/200 & 51$\times$ & 0.529/0.522\\
-фин.\ дневные & 322/400 & 11$\times$ & 0.635/0.626\\
-сенсор ETT    & 100/100 & 2.2$\times$ & 0.641/0.488\\
-макро FRED    & 300/300 & ---        & $F_0$ лучший\\
+фин.\ 15-мин  & 109/200 & $F_2$ & $51\times$ & 0.529/0.522\\
+фин.\ дневные & 322/400 & $F_2$ & $11\times$ & 0.635/0.626\\
+сенсор ETT    & 100/100 & $F_1$ & $2.2\times$ & 0.641/0.488\\
+макро FRED    & 300/300 & $F_0$ & ---        & $F_0$ лучший\\
 \bottomrule
 \end{tabular}
 \end{center}
-\fig{figures/real_holdout_mse.pdf}{0.54}
-{\small Фильтр~--- инструмент кондиционирования \emph{оптимизации}, не
-улучшения прогноза.}
-\end{hpanel}
+\textbf{Но скорость $\ne$ точность:} кластерный бутстрап по holdout-MSE
+(ресэмпл рядов) показывает, что прогноз фильтр \emph{не} улучшает~---
+доверительный интервал выше нуля на всех доменах. Фильтр~--- инструмент
+кондиционирования оптимизации, а не улучшения прогноза.
 
-\begin{panel}{Итог проверки гипотез и выводы}
-\small
-\begin{tabular}{@{}p{0.52\linewidth}c l@{}}
+\heading{Правило $(\hat\alpha,\hat H)\to$ фильтр}
+\begin{center}\small
+\begin{tabular}{@{}lll@{}}
 \toprule
-Гипотеза & Подтв. & Критерий\\
+Режим $(\hat\alpha,\hat H)$ & связка & основание\\
 \midrule
-H1 — медиана спасает (N3) & \yes & Макнемар + парный $t$\\
-H2 — вейвлет ускоряет (N2) & \yes & two-stage\\
-H3 — для N4 рецепта нет & \yes & TOST (и каскад $F_5$)\\
-H4 — на N1 не помогает & \yes & TOST, $d{<}0$\\
-\midrule
-Фильтр улучшает прогноз & \no & кластерный бутстрап\\
+$\hat\alpha{\approx}2,\ \hat H{\approx}0.5$ & $F_0$ & теория+опыт\\
+$\hat\alpha{\approx}2,\ \hat H{>}0.6$       & $F_3{+}$Adam & теория+опыт\\
+$\hat\alpha{<}1.9,\ \hat H{\approx}0.5$     & $F_4{+}$SGD & теория+опыт\\
+$\hat\alpha{<}1.9,\ \hat H{>}0.6$ (N4)       & нет рецепта & открытый вопрос\\
 \bottomrule
 \end{tabular}
+\end{center}
 
-\medskip
-\textbf{Правило $(\hat\alpha,\hat H)\!\to\!$ фильтр:} тяжёлый хвост без
-памяти $\Rightarrow F_4{+}$SGD; лёгкий хвост, долгая память $\Rightarrow
-F_3{+}$Adam; гаусс $\Rightarrow F_0$; смешанный N4~--- открытый вопрос.
+\heading{Выводы}
+\begin{itemize}\setlength{\itemsep}{0.25\baselineskip}
+\item Робастная медиана восстанавливает конечную дисперсию градиента~---
+линейные фильтры этого не дают.
+\item Тяжёлый хвост сам по себе не повод фильтровать: если узкое
+место не в сходимости (гаусс, светлый хвост), лучший выбор~--- $F_0$.
+\item На реальных рядах фильтр ускоряет оптимизацию, но прогноз на holdout
+не улучшает (и может ухудшить).
+\item Каскад $F_5$ усиливает эффект на N3, но смешанный N4 остаётся открытым.
+\item Все четыре гипотезы подтвердились на 100~сидах формальными
+стат-критериями.
+\end{itemize}
 
-\medskip
-\textbf{Выводы.} Робастная медиана возвращает градиенту конечную дисперсию
-(линейные фильтры~--- нет); тяжёлый хвост сам по себе не повод фильтровать
-(на гауссе лучший выбор $F_0$); на реальных рядах фильтр ускоряет
-оптимизацию, но прогноз \emph{не} улучшает; каскад $F_5$ усиливает N3, но
-N4 остаётся открытым. \textbf{Все четыре гипотезы подтвердились на 100
-сидах с формальными стат-критериями.}
-\end{panel}
+\vfill
+{\small Код и данные: \texttt{github.com/Poogee/momo\_proj}}
 
 \end{multicols}
 \end{document}

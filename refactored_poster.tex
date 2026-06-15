@@ -156,33 +156,43 @@ N4cal его нет.}
 
 {\large
 \renewcommand{\arraystretch}{1.35}
-\begin{minipage}[t]{0.50\textwidth}
+\begin{minipage}[t]{0.35\textwidth}
 {\color{headblue}\Large\bfseries Проверка гипотез}\par\medskip
-\begin{tabular}{@{}p{0.66\linewidth}l c@{}}
+\begin{tabular}{@{}p{0.60\linewidth}l c@{}}
 \toprule
-Гипотеза & Стат-тест & Итог\\
+Гипотеза & Тест & Итог\\
 \midrule
-H1~--- медиана возвращает сходимость (N3) & Макнемар, $t$ & \yes\\
-H2~--- вейвлет ускоряет обучение (N2)      & two-stage     & \yes\\
-H3~--- для смешанного N4 фильтра нет       & TOST          & \yes\\
-H4~--- на гауссовом шуме фильтр не нужен   & TOST          & \yes\\
+H1~--- медиана даёт сходимость (N3) & Макнемар, $t$ & \yes\\
+H2~--- вейвлет ускоряет (N2)        & two-stage     & \yes\\
+H3~--- для N4 фильтра нет           & TOST          & \yes\\
+H4~--- на гауссе фильтр не нужен    & TOST          & \yes\\
 \midrule
-фильтр улучшает прогноз на реальных данных & бутстрап      & \no\\
+фильтр улучшает прогноз            & бутстрап      & \no\\
 \bottomrule
 \end{tabular}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.45\textwidth}
+\begin{minipage}[t]{0.26\textwidth}
 {\color{headblue}\Large\bfseries Какой фильтр выбрать}\par\medskip
-\begin{tabular}{@{}l@{\hspace{2.5em}}l@{}}
+\begin{tabular}{@{}l@{\hspace{1.5em}}l@{}}
 \toprule
 Шум ряда & Связка\\
 \midrule
-тяжёлый хвост  & медиана $F_4$ с SGD\\
-долгая память  & вейвлет $F_3$ с Adam\\
-гауссов шум    & без фильтра, $F_0$\\
-смешанный (N4) & готового рецепта пока нет\\
+тяжёлый хвост  & медиана $F_4$, SGD\\
+долгая память  & вейвлет $F_3$, Adam\\
+гауссов шум    & без фильтра $F_0$\\
+смешанный (N4) & рецепта пока нет\\
 \bottomrule
 \end{tabular}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.33\textwidth}
+{\color{headblue}\Large\bfseries Как выбрать на своих данных}\par\medskip
+\begin{enumerate}\setlength{\itemsep}{0.45\baselineskip}\setlength{\leftmargini}{1.5em}
+\item На обучающей части ряда оцениваем индекс хвоста $\hat\alpha$
+(Маккаллох или Хилл) и показатель Хёрста $\hat H$ (DFA по $|\Delta y_t|$)
+\item Определяем режим: $\hat\alpha<1.9$~--- тяжёлый хвост,
+$\hat H>0.6$~--- долгая память
+\item Берём связку (фильтр, оптимизатор) из таблицы слева
+\end{enumerate}
 \end{minipage}
 }
 \end{document}

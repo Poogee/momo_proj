@@ -148,50 +148,47 @@ N4cal его нет.}
 \end{multicols}
 
 % ===================== ИТОГОВЫЙ БЛОК ВО ВСЮ ШИРИНУ =====================
-\vfill
+\bigskip
 {\color{titlered}\hrule height 2.5pt}
 \medskip
 {\color{headblue}\Huge\bfseries Гипотезы и выводы}
 \par\bigskip
 
 {\large
-\begin{minipage}[t]{0.40\textwidth}
-{\color{headblue}\bfseries Проверка гипотез}\par\smallskip
-\begin{tabular}{@{}p{0.60\linewidth}l c@{}}
+\renewcommand{\arraystretch}{1.35}
+\begin{minipage}[t]{0.50\textwidth}
+{\color{headblue}\Large\bfseries Проверка гипотез}\par\medskip
+\begin{tabular}{@{}p{0.66\linewidth}l c@{}}
 \toprule
-Гипотеза & Тест & \\
+Гипотеза & Стат-тест & Итог\\
 \midrule
 H1~--- медиана возвращает сходимость (N3) & Макнемар, $t$ & \yes\\
 H2~--- вейвлет ускоряет обучение (N2)      & two-stage     & \yes\\
 H3~--- для смешанного N4 фильтра нет       & TOST          & \yes\\
-H4~--- на гауссе фильтр не нужен           & TOST          & \yes\\
+H4~--- на гауссовом шуме фильтр не нужен   & TOST          & \yes\\
 \midrule
 фильтр улучшает прогноз на реальных данных & бутстрап      & \no\\
 \bottomrule
 \end{tabular}
 \end{minipage}\hfill
-\begin{minipage}[t]{0.32\textwidth}
-{\color{headblue}\bfseries Какой фильтр выбрать}\par\smallskip
-\renewcommand{\arraystretch}{1.25}
-\begin{tabular}{@{}ll@{}}
+\begin{minipage}[t]{0.45\textwidth}
+{\color{headblue}\Large\bfseries Какой фильтр выбрать}\par\medskip
+\begin{tabular}{@{}l@{\hspace{2.5em}}l@{}}
 \toprule
 Шум ряда & Связка\\
 \midrule
-тяжёлый хвост   & медиана $F_4$ с SGD\\
-долгая память   & вейвлет $F_3$ с Adam\\
-гауссов шум     & без фильтра, $F_0$\\
-смешанный (N4)  & рецепта пока нет\\
+тяжёлый хвост  & медиана $F_4$ с SGD\\
+долгая память  & вейвлет $F_3$ с Adam\\
+гауссов шум    & без фильтра, $F_0$\\
+смешанный (N4) & готового рецепта пока нет\\
 \bottomrule
 \end{tabular}
-\end{minipage}\hfill
-\begin{minipage}[t]{0.23\textwidth}
-{\color{headblue}\bfseries Главное}
-\begin{itemize}\setlength{\itemsep}{0.3\baselineskip}\setlength{\leftmargini}{1.1em}
-\item Медиана даёт градиенту конечную дисперсию
-\item Тяжёлый хвост сам по себе не повод фильтровать
-\item Фильтр ускоряет обучение, но не прогноз
-\item Смешанный режим N4 пока не решён
-\end{itemize}
+
+\medskip
+{\color{headblue}\Large\bfseries Главное.} Медиана возвращает градиенту
+конечную дисперсию, чего линейные фильтры не дают. Тяжёлый хвост сам по себе
+не повод фильтровать. На реальных данных фильтр ускоряет обучение, но не
+улучшает прогноз, а смешанный режим N4 пока остаётся нерешённым.
 \end{minipage}
 }
 \end{document}

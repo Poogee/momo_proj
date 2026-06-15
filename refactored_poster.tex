@@ -141,9 +141,9 @@ N4cal его нет.}
 обучение Adam в десятки раз, но точность прогноза при этом не растёт.
 Кластерный бутстрап подтверждает, что ошибка на отложенной выборке с
 фильтром и без него совпадает. Фильтр улучшает оптимизацию, а не сам прогноз.
-\begin{center}\small
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
 \begin{tabular}{@{}lccccc@{}}
-\multicolumn{6}{@{}l}{\textbf{Таблица VII. Реальные ряды, Adam}}\\[2pt]
 \toprule
 Домен & $T$\,$F_0$ & сошл.\,$F_0$ & лучш. & ускор. & holdout (л./$F_0$)\\
 \midrule
@@ -184,20 +184,20 @@ H4~--- на гауссе фильтр не нужен    & TOST          & \yes\
 \end{tabular}
 \end{minipage}\hfill
 \begin{minipage}[t]{0.38\textwidth}
-{\color{headblue}\Large\bfseries Как выбрать фильтр}\par\medskip
-По обучающей части ряда оцениваем индекс хвоста $\hat\alpha$ (Маккаллох или
-Хилл) и память $\hat H$ (DFA по $|\Delta y_t|$), затем по четырём случаям:
-\par\smallskip
+{\color{headblue}\Large\bfseries Тип шума на реальных данных}\par\medskip
 \begin{tabular}{@{}ll@{}}
 \toprule
-Диагностика & Связка\\
+Диагностика & Шум\\
 \midrule
-$\hat\alpha\approx2$, $\hat H\approx0.5$ & без фильтра $F_0$\\
-$\hat\alpha\approx2$, $\hat H>0.6$       & вейвлет $F_3$, Adam\\
-$\hat\alpha<1.9$, $\hat H\approx0.5$     & медиана $F_4$, SGD\\
-$\hat\alpha<1.9$, $\hat H>0.6$           & Калман $F_2$, Adam\\
+$\hat\alpha\approx2$, $\hat H\approx0.5$ & N1, гаусс\\
+$\hat\alpha\approx2$, $\hat H>0.6$       & N2, долгая память\\
+$\hat\alpha<1.9$, $\hat H\approx0.5$     & N3, тяжёлый хвост\\
+$\hat\alpha<1.9$, $\hat H>0.6$           & N4, смешанный\\
 \bottomrule
 \end{tabular}
+\par\medskip
+{\small Считаем по обучающей части: $\hat\alpha$~--- метод Маккаллоха или
+Хилла, $\hat H$~--- DFA по $|\Delta y_t|$.}
 \end{minipage}\hfill
 \begin{minipage}[t]{0.24\textwidth}
 {\color{headblue}\Large\bfseries Какой фильтр выбрать}\par\medskip

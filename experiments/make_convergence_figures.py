@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-FILT_ORDER = ["F0", "F1", "F2", "F3", "F4"]
+FILT_ORDER = ["F0", "F1", "F2", "F3", "F4", "F5"]
 MODEL_LBL = {"quadratic": "квадратичная регр.", "logistic": "логистич. класс.",
              "ar": "авторегрессия"}
 
@@ -86,7 +86,7 @@ def fig_rescue(summ_csv, curves_npz, out):
         axb.text(0.5, 0.5, f"curves n/a\n{e}", ha="center")
 
     fig.suptitle("Предфильтрация спасает сходимость SGD при тяжёлохвостовом "
-                 "градиентном шуме (8 сидов)", fontweight="bold")
+                 "градиентном шуме (100 сидов)", fontweight="bold")
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150)
@@ -148,7 +148,7 @@ def fig_gaussian_control(summ_csv, curves_npz, out):
         axb.text(0.5, 0.5, f"curves n/a\n{e}", ha="center")
 
     fig.suptitle("Гауссов контроль N1: фильтрация нейтральна, медиана F4 "
-                 "слегка проигрывает среднему (8 сидов)", fontweight="bold")
+                 "слегка проигрывает среднему (100 сидов)", fontweight="bold")
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150)
@@ -198,11 +198,11 @@ def fig_longmemory(summ_csv, curves_npz, out):
     axb.set_xticks(x + 0.2)
     axb.set_xticklabels(filt)
     axb.set_ylabel(r"ускорение $T(\varepsilon)$ относительно F0")
-    axb.set_title("(б) F3 даёт ~11× ускорение; линейные фильтры — нет")
+    axb.set_title("(б) F3 даёт ~5× ускорение; линейные фильтры и каскад F5 — нет")
     axb.legend(fontsize=8)
 
     fig.suptitle("Долгая память N2: вейвлет F3 ускоряет адаптивные "
-                 "оптимизаторы (8 сидов)", fontweight="bold")
+                 "оптимизаторы (100 сидов)", fontweight="bold")
     fig.tight_layout(rect=(0, 0, 1, 0.95))
     out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out, dpi=150)
@@ -324,12 +324,14 @@ def fig_calibrated(csv, diag_csv, out):
         sub = df[df.noise == nk]
         models = list(sub.model.unique())
         x = np.arange(len(models))
-        for i, fk in enumerate(["F0", "F4"]):
+        fks = [f for f in ["F0", "F4", "F5"] if f in sub["filter"].unique()]
+        wcal = 0.8 / max(len(fks), 1)
+        for i, fk in enumerate(fks):
             ys = [float(sub[(sub.model == m) & (sub["filter"] == fk)]
                         ["floor_p50"].median()) for m in models]
-            ax.bar(x + i * 0.3, ys, 0.3, label=fk)
+            ax.bar(x + i * wcal, ys, wcal, label=fk)
         ax.set_yscale("log")
-        ax.set_xticks(x + 0.15)
+        ax.set_xticks(x + 0.4 - wcal / 2)
         ax.set_xticklabels(models, fontsize=8)
         ax.set_ylabel(r"асимпт. уровень $\|\nabla f\|^2$ (медиана)")
         ax.set_title(f"{nk}  (α̂={a_used:.2f}"
